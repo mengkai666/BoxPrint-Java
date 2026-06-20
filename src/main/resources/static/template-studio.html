@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>模板维护中心</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #172026;
+            --muted: #5d6975;
+            --line: #d8dee5;
+            --panel: #fff;
+            --bg: #f3f5f7;
+            --accent: #0f766e;
+            --accent-dark: #0a5e58;
+            --danger: #b42318;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+            font-size: 14px;
+        }
+        header {
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 22px;
+            background: #111827;
+            color: #fff;
+        }
+        h1 { margin: 0; font-size: 18px; letter-spacing: 0; }
+        header a { color: #d1fae5; text-decoration: none; }
+        main {
+            display: grid;
+            grid-template-columns: minmax(300px, 360px) minmax(520px, 1fr) minmax(340px, 420px);
+            gap: 12px;
+            padding: 12px;
+            min-height: calc(100vh - 56px);
+        }
+        section {
+            min-width: 0;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .section-title {
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            border-bottom: 1px solid var(--line);
+            background: #fafbfc;
+            font-weight: 650;
+        }
+        .body { padding: 14px; overflow: auto; }
+        label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+        input, select, textarea {
+            width: 100%;
+            border: 1px solid #c6ccd3;
+            border-radius: 4px;
+            padding: 0 9px;
+            background: #fff;
+            font: inherit;
+        }
+        input, select { height: 34px; }
+        textarea { min-height: 70px; padding-top: 8px; resize: vertical; }
+        button {
+            height: 34px;
+            border: 1px solid #b8c0c8;
+            border-radius: 4px;
+            padding: 0 11px;
+            background: #fff;
+            color: var(--ink);
+            font: inherit;
+            cursor: pointer;
+        }
+        button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+        button.primary:hover { background: var(--accent-dark); }
+        .field { margin-bottom: 11px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
+        .list { border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #fff; }
+        .template-item, .field-item, .layer-item {
+            width: 100%;
+            border: 0;
+            border-bottom: 1px solid var(--line);
+            border-radius: 0;
+            display: grid;
+            gap: 4px;
+            text-align: left;
+            min-height: 46px;
+            padding: 8px 10px;
+        }
+        .template-item:last-child, .field-item:last-child, .layer-item:last-child { border-bottom: 0; }
+        .template-item.active, .layer-item.active { background: #e8f5f3; border-left: 3px solid var(--accent); }
+        .muted { color: var(--muted); font-size: 12px; }
+        .canvas-shell {
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #dfe5eb;
+            padding: 18px;
+            min-height: 520px;
+        }
+        .template-canvas {
+            position: relative;
+            width: 720px;
+            height: 480px;
+            background: #fff;
+            box-shadow: 0 2px 12px rgba(15, 23, 42, .16);
+        }
+        .template-element {
+            position: absolute;
+            border: 1px solid #94a3b8;
+            background: rgba(255, 255, 255, .92);
+            overflow: hidden;
+            padding: 2px 4px;
+            cursor: move;
+            font-size: 12px;
+        }
+        .template-element.selected { border-color: var(--accent); background: #ecfdf5; }
+        .template-element.barcode, .template-element.qrcode, .template-element.logo {
+            display: grid;
+            place-items: center;
+            background: #f8fafc;
+            color: var(--muted);
+        }
+        .inspector-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .output {
+            min-height: 220px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            overflow: hidden;
+            background: #edf0f3;
+        }
+        .output img { width: 100%; height: 280px; object-fit: contain; display: block; background: #fff; }
+        .status {
+            min-height: 34px;
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .status.ok { color: var(--accent-dark); }
+        .status.error { color: var(--danger); }
+        @media (max-width: 1180px) {
+            main { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>模板维护中心</h1>
+    <a href="/print-workbench">箱贴打印工作台</a>
+</header>
+<main>
+    <section>
+        <div class="section-title">模板资产</div>
+        <div class="body">
+            <div class="row">
+                <div class="field">
+                    <label for="labelType">类型</label>
+                    <select id="labelType">
+                        <option value="BOX">箱贴</option>
+                        <option value="BAG">袋贴</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="templateStatus">状态</label>
+                    <select id="templateStatus">
+                        <option value="">全部</option>
+                        <option value="ACTIVE">启用</option>
+                        <option value="DRAFT">草稿</option>
+                    </select>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="reloadTemplatesBtn" class="primary">刷新模板</button>
+                <button id="legacyImportBtn">旧模板导入</button>
+                <button id="imageImportBtn">样张识别</button>
+            </div>
+            <div id="templates" class="list"></div>
+
+            <h3>模板基础信息</h3>
+            <div class="field">
+                <label for="templateCode">模板编码</label>
+                <input id="templateCode">
+            </div>
+            <div class="field">
+                <label for="templateName">模板名称</label>
+                <input id="templateName">
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label for="pageWidthMm">宽 mm</label>
+                    <input id="pageWidthMm" type="number" value="120">
+                </div>
+                <div class="field">
+                    <label for="pageHeightMm">高 mm</label>
+                    <input id="pageHeightMm" type="number" value="80">
+                </div>
+            </div>
+            <div class="actions">
+                <button id="saveTemplateBtn">保存基础信息</button>
+                <button id="copyTemplateBtn">复制模板</button>
+            </div>
+        </div>
+        <div id="leftStatus" class="status">待加载模板</div>
+    </section>
+
+    <section>
+        <div class="section-title">配置版式编辑</div>
+        <div class="body">
+            <div class="actions">
+                <button id="addTextBtn">单行文本</button>
+                <button id="addMultilineBtn">多行文本</button>
+                <button id="addFieldBtn">字段文本</button>
+                <button id="addBarcodeBtn">条码</button>
+                <button id="addQrBtn">二维码</button>
+                <button id="addLogoBtn">Logo</button>
+                <button id="deleteElementBtn">删除</button>
+            </div>
+            <div class="actions">
+                <button id="duplicateElementBtn">复制元素</button>
+                <button id="alignLeftBtn">左对齐</button>
+                <button id="alignRightBtn">右对齐</button>
+                <button id="alignTopBtn">上对齐</button>
+                <button id="alignBottomBtn">下对齐</button>
+                <button id="layerUpBtn">上移一层</button>
+                <button id="layerDownBtn">下移一层</button>
+                <button id="layerTopBtn">置顶</button>
+                <button id="layerBottomBtn">置底</button>
+            </div>
+            <div class="row">
+                <div>
+                    <h3>字段面板</h3>
+                    <div id="fieldPalette" class="list"></div>
+                </div>
+                <div>
+                    <h3>图层</h3>
+                    <div id="layerList" class="list"></div>
+                </div>
+            </div>
+            <div class="canvas-shell">
+                <div class="template-canvas" id="templateCanvas"></div>
+            </div>
+            <div class="actions">
+                <button id="saveElementsBtn" class="primary">保存元素</button>
+            </div>
+        </div>
+        <div id="middleStatus" class="status">选择 CONFIG_LAYOUT 模板后可编辑</div>
+    </section>
+
+    <section>
+        <div class="section-title">属性与预览</div>
+        <div class="body">
+            <div class="element-inspector" id="elementInspector"></div>
+            <h3>样张预览</h3>
+            <div class="field">
+                <label for="sampleProductId">样例产品</label>
+                <select id="sampleProductId"></select>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label for="productionDate">生产日期</label>
+                    <input id="productionDate" type="date" value="2026-06-08">
+                </div>
+                <div class="field">
+                    <label for="shift">班次</label>
+                    <input id="shift" value="A">
+                </div>
+            </div>
+            <div class="actions">
+                <button id="templatePreviewBtn" class="primary">模板预览</button>
+            </div>
+            <div id="outputPane" class="output"></div>
+        </div>
+        <div id="rightStatus" class="status">未预览</div>
+    </section>
+</main>
+
+<script>
+    const $ = (id) => document.getElementById(id);
+    const state = {
+        templates: [],
+        fieldContract: [],
+        editorTemplate: null,
+        editorElements: [],
+        selectedElementIds: []
+    };
+
+    async function api(url, options) {
+        const response = await fetch(url, options);
+        if (!response.ok) throw new Error(await response.text() || response.statusText);
+        return response.json();
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function setStatus(id, message, type) {
+        const node = $(id);
+        node.className = 'status' + (type ? ' ' + type : '');
+        node.textContent = message;
+    }
+
+    function roundMm(value) {
+        return Math.round(Number(value || 0) * 10) / 10;
+    }
+
+    function newElementId() {
+        return 'draft-' + Date.now() + '-' + Math.random().toString(16).slice(2, 8);
+    }
+
+    async function loadFieldContract() {
+        const data = await api('/api/box-labels/field-contract');
+        state.fieldContract = data.fields || data.items || [];
+        renderFieldPalette();
+    }
+
+    async function loadTemplates() {
+        const params = new URLSearchParams();
+        params.set('labelType', $('labelType').value);
+        const data = await api('/api/label-templates?' + params.toString());
+        state.templates = (data.items || []).filter((item) => !$('templateStatus').value || item.status === $('templateStatus').value);
+        renderTemplates();
+        if (!state.editorTemplate && state.templates.length) {
+            loadTemplateIntoEditor(state.templates[0].code);
+        }
+    }
+
+    function renderTemplates() {
+        $('templates').innerHTML = state.templates.map((item) =>
+            `<button class="template-item ${state.editorTemplate && state.editorTemplate.code === item.code ? 'active' : ''}" data-code="${escapeHtml(item.code)}">
+                <strong>${escapeHtml(item.name)}</strong>
+                <span class="muted">${escapeHtml(item.code)} / ${escapeHtml(item.engine)} / ${escapeHtml(item.status)} / v${escapeHtml(item.version)}</span>
+            </button>`
+        ).join('');
+        Array.prototype.forEach.call(document.querySelectorAll('.template-item'), (button) => {
+            button.onclick = () => loadTemplateIntoEditor(button.getAttribute('data-code'));
+        });
+    }
+
+    function renderFieldPalette() {
+        $('fieldPalette').innerHTML = state.fieldContract.map((item) =>
+            `<button class="field-item" data-field="${escapeHtml(item.fieldName)}">
+                <strong>${escapeHtml(item.displayName || item.fieldName)}</strong>
+                <span class="muted">${escapeHtml(item.fieldName)} / ${escapeHtml(item.category)}</span>
+            </button>`
+        ).join('');
+        Array.prototype.forEach.call(document.querySelectorAll('.field-item'), (button) => {
+            button.onclick = () => addTemplateElement('FIELD_TEXT', button.getAttribute('data-field'));
+        });
+    }
+
+    function loadTemplateIntoEditor(code) {
+        const template = state.templates.find((item) => item.code === code);
+        state.editorTemplate = template;
+        state.editorElements = (template && template.elements ? template.elements : []).map((item, index) =>
+            Object.assign({id: item.id || newElementId(), sortOrder: index + 1}, item)
+        );
+        state.selectedElementIds = [];
+        $('templateCode').value = template ? template.code : '';
+        $('templateName').value = template ? template.name : '';
+        $('pageWidthMm').value = template ? template.pageWidthMm : 120;
+        $('pageHeightMm').value = template ? template.pageHeightMm : 80;
+        renderTemplates();
+        renderTemplateEditor(template);
+    }
+
+    function selectedEditorElements() {
+        return state.editorElements.filter((item) => state.selectedElementIds.indexOf(item.id) >= 0);
+    }
+
+    function primarySelectedElement() {
+        const selected = selectedEditorElements();
+        return selected.length ? selected[0] : null;
+    }
+
+    function copyEditorElements() {
+        return state.editorElements.map((item, index) => Object.assign({}, item, {sortOrder: index + 1}));
+    }
+
+    function renderTemplateEditor(template) {
+        const canvas = $('templateCanvas');
+        if (!template) {
+            canvas.innerHTML = '';
+            $('elementInspector').innerHTML = '<span class="muted">暂无模板</span>';
+            $('layerList').innerHTML = '';
+            return;
+        }
+        const width = Number(template.pageWidthMm || 120);
+        const height = Number(template.pageHeightMm || 80);
+        canvas.style.width = (width * 6) + 'px';
+        canvas.style.height = (height * 6) + 'px';
+        canvas.innerHTML = state.editorElements
+            .slice()
+            .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
+            .map((element) => {
+                const selected = state.selectedElementIds.indexOf(element.id) >= 0;
+                return `<div class="template-element ${editorElementClass(element)} ${selected ? 'selected' : ''}"
+                    data-id="${escapeHtml(element.id)}"
+                    style="${styleElementNode(element)}">${editorElementText(element)}</div>`;
+            }).join('');
+        Array.prototype.forEach.call(canvas.querySelectorAll('.template-element'), (node) => {
+            node.onclick = (event) => {
+                event.stopPropagation();
+                selectEditorElement(node.getAttribute('data-id'), event.ctrlKey || event.metaKey || event.shiftKey);
+            };
+        });
+        canvas.onclick = () => {
+            state.selectedElementIds = [];
+            renderTemplateEditor(state.editorTemplate);
+        };
+        renderLayerList();
+        renderElementInspector();
+    }
+
+    function editorElementClass(element) {
+        if (element.type === 'BARCODE') return 'barcode';
+        if (element.type === 'QRCODE') return 'qrcode';
+        if (element.type === 'LOGO') return 'logo';
+        return 'text';
+    }
+
+    function styleElementNode(element) {
+        return [
+            `left:${Number(element.leftMm || 0) * 6}px`,
+            `top:${Number(element.topMm || 0) * 6}px`,
+            `width:${Number(element.widthMm || 20) * 6}px`,
+            `height:${Number(element.heightMm || 8) * 6}px`,
+            `font-size:${Number(element.fontSize || 10)}px`,
+            `text-align:${element.textAlign || 'left'}`
+        ].join(';');
+    }
+
+    function editorElementText(element) {
+        if (element.type === 'STATIC_TEXT') return escapeHtml(element.text || '固定文本');
+        if (element.type === 'FIELD_TEXT') return '${' + escapeHtml(element.fieldName || 'field') + '}';
+        if (element.type === 'BARCODE') return 'Code128';
+        if (element.type === 'QRCODE') return 'QR';
+        if (element.type === 'LOGO') return 'Logo';
+        if (element.type === 'LINE') return '';
+        return escapeHtml(element.type);
+    }
+
+    function renderLayerList() {
+        $('layerList').innerHTML = state.editorElements
+            .slice()
+            .sort((a, b) => Number(b.sortOrder || 0) - Number(a.sortOrder || 0))
+            .map((item) =>
+                `<button class="layer-item ${state.selectedElementIds.indexOf(item.id) >= 0 ? 'active' : ''}" data-id="${escapeHtml(item.id)}">
+                    <strong>${escapeHtml(item.type)} ${escapeHtml(item.fieldName || item.text || '')}</strong>
+                    <span class="muted">${escapeHtml(item.leftMm)}mm, ${escapeHtml(item.topMm)}mm / ${escapeHtml(item.widthMm)}x${escapeHtml(item.heightMm)}</span>
+                </button>`
+            ).join('');
+        Array.prototype.forEach.call(document.querySelectorAll('.layer-item'), (button) => {
+            button.onclick = () => selectEditorElement(button.getAttribute('data-id'), false);
+        });
+    }
+
+    function renderElementInspector() {
+        const element = primarySelectedElement();
+        if (!state.editorTemplate) {
+            $('elementInspector').innerHTML = '<span class="muted">暂无模板</span>';
+            return;
+        }
+        if (!element) {
+            $('elementInspector').innerHTML = '<span class="muted">选择或新增元素</span>';
+            return;
+        }
+        $('elementInspector').innerHTML = `
+            <div class="inspector-grid">
+                <div class="field"><label for="elementType">类型</label><select id="elementType">${elementTypeOptions(element.type)}</select></div>
+                <div class="field"><label for="fieldName">字段</label><select id="fieldName">${fieldOptions(element.fieldName)}</select></div>
+                <div class="field"><label for="leftMm">左 mm</label><input id="leftMm" type="number" step="0.1" value="${escapeHtml(element.leftMm || 0)}"></div>
+                <div class="field"><label for="topMm">上 mm</label><input id="topMm" type="number" step="0.1" value="${escapeHtml(element.topMm || 0)}"></div>
+                <div class="field"><label for="widthMm">宽 mm</label><input id="widthMm" type="number" step="0.1" value="${escapeHtml(element.widthMm || 20)}"></div>
+                <div class="field"><label for="heightMm">高 mm</label><input id="heightMm" type="number" step="0.1" value="${escapeHtml(element.heightMm || 8)}"></div>
+                <div class="field"><label for="fontSize">字号</label><input id="fontSize" type="number" value="${escapeHtml(element.fontSize || 10)}"></div>
+                <div class="field"><label for="textAlign">对齐</label><select id="textAlign">
+                    <option value="left" ${element.textAlign === 'left' ? 'selected' : ''}>左</option>
+                    <option value="center" ${element.textAlign === 'center' ? 'selected' : ''}>中</option>
+                    <option value="right" ${element.textAlign === 'right' ? 'selected' : ''}>右</option>
+                </select></div>
+            </div>
+            <div class="field"><label for="elementText">文本</label><textarea id="elementText">${escapeHtml(element.text || '')}</textarea></div>
+            <div class="actions"><button id="applyElementBtn" class="primary">应用属性</button></div>
+        `;
+        $('applyElementBtn').onclick = updateSelectedElement;
+    }
+
+    function elementTypeOptions(selected) {
+        return ['STATIC_TEXT', 'FIELD_TEXT', 'BARCODE', 'QRCODE', 'LOGO', 'LINE'].map((type) =>
+            `<option value="${type}" ${type === selected ? 'selected' : ''}>${type}</option>`
+        ).join('');
+    }
+
+    function fieldOptions(selected) {
+        return ['<option value="">无</option>'].concat(state.fieldContract.map((item) =>
+            `<option value="${escapeHtml(item.fieldName)}" ${item.fieldName === selected ? 'selected' : ''}>${escapeHtml(item.displayName || item.fieldName)} / ${escapeHtml(item.fieldName)}</option>`
+        )).join('');
+    }
+
+    function addTemplateElement(type, fieldName) {
+        if (!state.editorTemplate) return;
+        const element = {
+            id: newElementId(),
+            type: type,
+            fieldName: fieldName || (type === 'FIELD_TEXT' ? 'boxLabelName' : ''),
+            text: type === 'STATIC_TEXT' ? '固定文本' : '',
+            leftMm: 6,
+            topMm: 6 + state.editorElements.length * 4,
+            widthMm: type === 'QRCODE' ? 20 : 50,
+            heightMm: type === 'QRCODE' ? 20 : 8,
+            fontSize: 10,
+            textAlign: 'left',
+            sortOrder: state.editorElements.length + 1
+        };
+        if (type === 'BARCODE') {
+            element.widthMm = 65;
+            element.heightMm = 16;
+        }
+        if (type === 'LOGO') {
+            element.widthMm = 28;
+            element.heightMm = 14;
+        }
+        state.editorElements.push(element);
+        state.selectedElementIds = [element.id];
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    function selectEditorElement(id, append) {
+        if (append) {
+            if (state.selectedElementIds.indexOf(id) >= 0) {
+                state.selectedElementIds = state.selectedElementIds.filter((item) => item !== id);
+            } else {
+                state.selectedElementIds.push(id);
+            }
+        } else {
+            state.selectedElementIds = [id];
+        }
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    function updateSelectedElement() {
+        const element = primarySelectedElement();
+        if (!element) return;
+        element.type = $('elementType').value;
+        element.fieldName = $('fieldName').value;
+        element.leftMm = roundMm($('leftMm').value);
+        element.topMm = roundMm($('topMm').value);
+        element.widthMm = roundMm($('widthMm').value);
+        element.heightMm = roundMm($('heightMm').value);
+        element.fontSize = Number($('fontSize').value || 10);
+        element.textAlign = $('textAlign').value;
+        element.text = $('elementText').value;
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    function deleteSelectedElement() {
+        if (!state.selectedElementIds.length) return;
+        state.editorElements = state.editorElements.filter((item) => state.selectedElementIds.indexOf(item.id) < 0);
+        state.selectedElementIds = [];
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    function duplicateSelectedElements() {
+        const selected = selectedEditorElements();
+        if (!selected.length) return;
+        const copies = selected.map((element, index) => Object.assign({}, element, {
+            id: newElementId(),
+            sortOrder: state.editorElements.length + index + 1,
+            leftMm: roundMm(element.leftMm + 2),
+            topMm: roundMm(element.topMm + 2)
+        }));
+        state.editorElements = state.editorElements.concat(copies);
+        state.selectedElementIds = copies.map((item) => item.id);
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    function alignSelectedElements(mode) {
+        const selected = selectedEditorElements();
+        if (selected.length < 2) return;
+        const anchor = selected[0];
+        selected.slice(1).forEach((element) => {
+            if (mode === 'left') element.leftMm = anchor.leftMm;
+            if (mode === 'right') element.leftMm = roundMm(anchor.leftMm + anchor.widthMm - element.widthMm);
+            if (mode === 'top') element.topMm = anchor.topMm;
+            if (mode === 'bottom') element.topMm = roundMm(anchor.topMm + anchor.heightMm - element.heightMm);
+        });
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    function moveSelectedLayer(mode) {
+        const selectedIds = state.selectedElementIds.slice();
+        if (!selectedIds.length) return;
+        const sorted = state.editorElements.slice().sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+        selectedIds.forEach((id) => {
+            const index = sorted.findIndex((item) => item.id === id);
+            if (index < 0) return;
+            if (mode === 'up' && index < sorted.length - 1) {
+                const next = sorted[index + 1];
+                sorted[index + 1] = sorted[index];
+                sorted[index] = next;
+            }
+            if (mode === 'down' && index > 0) {
+                const prev = sorted[index - 1];
+                sorted[index - 1] = sorted[index];
+                sorted[index] = prev;
+            }
+            if (mode === 'top') {
+                const item = sorted.splice(index, 1)[0];
+                sorted.push(item);
+            }
+            if (mode === 'bottom') {
+                const item = sorted.splice(index, 1)[0];
+                sorted.unshift(item);
+            }
+        });
+        state.editorElements = sorted.map((item, index) => Object.assign({}, item, {sortOrder: index + 1}));
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    async function saveTemplate() {
+        const data = await api('/api/label-templates', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                code: $('templateCode').value,
+                name: $('templateName').value,
+                labelType: $('labelType').value,
+                pageWidthMm: Number($('pageWidthMm').value || 120),
+                pageHeightMm: Number($('pageHeightMm').value || 80)
+            })
+        });
+        setStatus('leftStatus', `已保存 ${data.code}`, 'ok');
+        state.editorTemplate = data;
+        await loadTemplates();
+    }
+
+    async function saveElements() {
+        if (!state.editorTemplate) return;
+        const data = await api('/api/label-templates/' + encodeURIComponent(state.editorTemplate.code) + '/elements', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({elements: copyEditorElements()})
+        });
+        setStatus('middleStatus', `已保存元素，版本 ${data.version}`, 'ok');
+        state.editorTemplate = data;
+        state.editorElements = data.elements || [];
+        renderTemplateEditor(data);
+    }
+
+    async function loadSampleProducts() {
+        const data = await api('/api/name-conversions/products?keyword=DEMO');
+        $('sampleProductId').innerHTML = (data.items || []).map((item) =>
+            `<option value="${escapeHtml(item.productConfigId)}">${escapeHtml(item.inventoryName)} / ${escapeHtml(item.productConfigId)}</option>`
+        ).join('');
+    }
+
+    async function previewTemplateWithSample() {
+        if (!state.editorTemplate) return;
+        const data = await api('/api/label-templates/' + encodeURIComponent(state.editorTemplate.code) + '/preview', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                productConfigId: $('sampleProductId').value,
+                productionDate: $('productionDate').value || '2026-06-08',
+                shift: $('shift').value || 'A',
+                labelType: state.editorTemplate.labelType,
+                format: 'PNG'
+            })
+        });
+        $('outputPane').innerHTML = `<img alt="模板预览" src="${escapeHtml(data.previewUrl)}">`;
+        setStatus('rightStatus', `${data.templateCode} / ${data.format} / ${data.sizeBytes} bytes`, 'ok');
+    }
+
+    async function importLegacyTemplate() {
+        const data = await api('/api/template-imports/from-legacy', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({labelType: $('labelType').value, legacyTemplateId: '00000', legacyTemplateName: 'Legacy Box Template'})
+        });
+        setStatus('leftStatus', `旧模板草稿 ${data.code}`, 'ok');
+        await loadTemplates();
+    }
+
+    async function importImageTemplate() {
+        const data = await api('/api/template-imports/from-image', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({labelType: $('labelType').value, sampleName: 'box-sample.png'})
+        });
+        setStatus('leftStatus', `样张草稿 ${data.code}`, 'ok');
+        await loadTemplates();
+    }
+
+    $('reloadTemplatesBtn').onclick = loadTemplates;
+    $('labelType').onchange = loadTemplates;
+    $('templateStatus').onchange = loadTemplates;
+    $('saveTemplateBtn').onclick = saveTemplate;
+    $('saveElementsBtn').onclick = saveElements;
+    $('legacyImportBtn').onclick = importLegacyTemplate;
+    $('imageImportBtn').onclick = importImageTemplate;
+    $('addTextBtn').onclick = () => addTemplateElement('STATIC_TEXT');
+    $('addMultilineBtn').onclick = () => addTemplateElement('STATIC_TEXT');
+    $('addFieldBtn').onclick = () => addTemplateElement('FIELD_TEXT');
+    $('addBarcodeBtn').onclick = () => addTemplateElement('BARCODE');
+    $('addQrBtn').onclick = () => addTemplateElement('QRCODE');
+    $('addLogoBtn').onclick = () => addTemplateElement('LOGO');
+    $('deleteElementBtn').onclick = deleteSelectedElement;
+    $('duplicateElementBtn').onclick = duplicateSelectedElements;
+    $('alignLeftBtn').onclick = () => alignSelectedElements('left');
+    $('alignRightBtn').onclick = () => alignSelectedElements('right');
+    $('alignTopBtn').onclick = () => alignSelectedElements('top');
+    $('alignBottomBtn').onclick = () => alignSelectedElements('bottom');
+    $('layerUpBtn').onclick = () => moveSelectedLayer('up');
+    $('layerDownBtn').onclick = () => moveSelectedLayer('down');
+    $('layerTopBtn').onclick = () => moveSelectedLayer('top');
+    $('layerBottomBtn').onclick = () => moveSelectedLayer('bottom');
+    $('templatePreviewBtn').onclick = previewTemplateWithSample;
+
+    Promise.all([loadFieldContract(), loadTemplates(), loadSampleProducts()])
+        .catch((error) => setStatus('leftStatus', error.message, 'error'));
+</script>
+</body>
+</html>

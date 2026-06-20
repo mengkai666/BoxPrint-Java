@@ -115,21 +115,26 @@ class BoxLabelControllerTest {
     }
 
     @Test
-    void rootServesOperationalPrintWorkspace() throws Exception {
+    void rootAndPrintWorkbenchServePrintOnlyWorkspace() throws Exception {
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(forwardedUrl("index.html"));
+                .andExpect(forwardedUrl("print-workbench.html"));
+
+        mockMvc.perform(get("/print-workbench"))
+                .andExpect(status().isOk())
+                .andExpect(forwardedUrl("print-workbench.html"));
 
         String html = new String(
-                mockMvc.perform(get("/index.html"))
+                mockMvc.perform(get("/print-workbench.html"))
                         .andExpect(status().isOk())
                         .andReturn()
                         .getResponse()
                         .getContentAsByteArray(),
                 StandardCharsets.UTF_8
         );
-        org.assertj.core.api.Assertions.assertThat(html).contains("箱贴打印工作台");
         org.assertj.core.api.Assertions.assertThat(html)
+                .contains("箱贴打印工作台")
+                .contains("function renderPreviewGroups")
                 .contains("state.templates")
                 .contains("state.binding")
                 .contains("function syncTemplateFromBinding")
@@ -143,17 +148,19 @@ class BoxLabelControllerTest {
                 .contains("status-ok")
                 .contains("status-missing")
                 .contains("status-fallback")
-                .contains("templateCanvas")
-                .contains("fieldPalette")
-                .contains("elementInspector")
-                .contains("function renderTemplateEditor")
-                .contains("function addTemplateElement")
-                .contains("function beginElementDrag")
-                .contains("function saveEditorElements")
-                .contains("function renderFieldPalette")
                 .contains("job-template")
                 .contains("item.productConfigId")
                 .contains("item.operator")
-                .contains("item.output.templateCode");
+                .contains("item.output.templateCode")
+                .doesNotContain("templateCanvas")
+                .doesNotContain("fieldPalette")
+                .doesNotContain("elementInspector")
+                .doesNotContain("function renderTemplateEditor")
+                .doesNotContain("function addTemplateElement")
+                .doesNotContain("function beginElementDrag")
+                .doesNotContain("function saveEditorElements")
+                .doesNotContain("function renderFieldPalette")
+                .doesNotContain("旧模板导入")
+                .doesNotContain("样张识别");
     }
 }

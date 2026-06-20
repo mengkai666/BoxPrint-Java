@@ -14,6 +14,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
@@ -22,6 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = BoxLabelApplication.class)
@@ -42,6 +45,35 @@ class TemplateStudioControllerTest {
                     "cx.printing.logo-path=src/test/resources/logo"
             ).applyTo(context.getEnvironment());
         }
+    }
+
+    @Test
+    void templateStudioServesDedicatedTemplateMaintenanceWorkspace() throws Exception {
+        mockMvc.perform(get("/template-studio"))
+                .andExpect(status().isOk())
+                .andExpect(forwardedUrl("template-studio.html"));
+
+        String html = new String(
+                mockMvc.perform(get("/template-studio.html"))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsByteArray(),
+                StandardCharsets.UTF_8
+        );
+
+        org.assertj.core.api.Assertions.assertThat(html)
+                .contains("模板维护中心")
+                .contains("templateCanvas")
+                .contains("fieldPalette")
+                .contains("elementInspector")
+                .contains("layerList")
+                .contains("sampleProductId")
+                .contains("function renderTemplateEditor")
+                .contains("function duplicateSelectedElements")
+                .contains("function alignSelectedElements")
+                .contains("function moveSelectedLayer")
+                .doesNotContain("提交打印");
     }
 
     @Test

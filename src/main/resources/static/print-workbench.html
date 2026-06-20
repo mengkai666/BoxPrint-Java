@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>箱贴打印工作台</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #172026;
+            --muted: #5d6975;
+            --line: #d8dee5;
+            --panel: #fff;
+            --bg: #f3f5f7;
+            --accent: #0f766e;
+            --accent-dark: #0a5e58;
+            --danger: #b42318;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+            font-size: 14px;
+        }
+        header {
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 22px;
+            background: #111827;
+            color: #fff;
+        }
+        h1 { margin: 0; font-size: 18px; letter-spacing: 0; }
+        header a { color: #d1fae5; text-decoration: none; }
+        main {
+            display: grid;
+            grid-template-columns: minmax(300px, 370px) minmax(460px, 1fr) minmax(360px, 430px);
+            gap: 12px;
+            padding: 12px;
+            min-height: calc(100vh - 56px);
+        }
+        section {
+            min-width: 0;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .section-title {
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            border-bottom: 1px solid var(--line);
+            background: #fafbfc;
+            font-weight: 650;
+        }
+        .body { padding: 14px; overflow: auto; }
+        label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+        input, select {
+            width: 100%;
+            height: 34px;
+            border: 1px solid #c6ccd3;
+            border-radius: 4px;
+            padding: 0 9px;
+            background: #fff;
+            font: inherit;
+        }
+        button {
+            height: 34px;
+            border: 1px solid #b8c0c8;
+            border-radius: 4px;
+            padding: 0 11px;
+            background: #fff;
+            color: var(--ink);
+            font: inherit;
+            cursor: pointer;
+        }
+        button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+        button.primary:hover { background: var(--accent-dark); }
+        .field { margin-bottom: 11px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
+        .list { border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+        .product {
+            width: 100%;
+            min-height: 56px;
+            border: 0;
+            border-bottom: 1px solid var(--line);
+            border-radius: 0;
+            display: grid;
+            gap: 4px;
+            text-align: left;
+            padding: 8px 10px;
+        }
+        .product:last-child { border-bottom: 0; }
+        .product.active { background: #e8f5f3; border-left: 3px solid var(--accent); }
+        .muted { color: var(--muted); font-size: 12px; }
+        .preview-groups { display: grid; gap: 12px; }
+        .preview-group {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .kv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; }
+        .kv {
+            min-height: 50px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 8px;
+            overflow-wrap: anywhere;
+        }
+        .kv span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+        .source-category {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 10px;
+            background: #f7f9fa;
+            border-bottom: 1px solid var(--line);
+            font-weight: 650;
+        }
+        .source-count, .source-display-name, .source-field-name, .source-status {
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .source-item {
+            display: grid;
+            grid-template-columns: 110px 1fr 78px;
+            gap: 8px;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--line);
+        }
+        .source-item:last-child { border-bottom: 0; }
+        .status-ok { color: var(--accent-dark); }
+        .status-missing { color: var(--danger); }
+        .status-fallback { color: #9a6700; }
+        .output {
+            min-height: 300px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            overflow: hidden;
+            background: #edf0f3;
+        }
+        .output iframe, .output img {
+            width: 100%;
+            height: 390px;
+            border: 0;
+            display: block;
+            object-fit: contain;
+            background: #fff;
+        }
+        .status {
+            min-height: 34px;
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .status.ok { color: var(--accent-dark); }
+        .status.error { color: var(--danger); }
+        .job {
+            padding: 8px 10px;
+            display: grid;
+            gap: 4px;
+            border-bottom: 1px solid var(--line);
+        }
+        .job:last-child { border-bottom: 0; }
+        .job-template { color: var(--accent-dark); font-weight: 650; }
+        @media (max-width: 1100px) {
+            main { grid-template-columns: 1fr; }
+            .kv-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>箱贴打印工作台</h1>
+    <a href="/template-studio">模板维护中心</a>
+</header>
+<main>
+    <section>
+        <div class="section-title">产品查询</div>
+        <div class="body">
+            <div class="field">
+                <label for="keyword">产品名称 / 编码 / 品牌</label>
+                <input id="keyword" value="DEMO">
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label for="templateFilter">模板</label>
+                    <select id="templateFilter"></select>
+                </div>
+                <div class="field">
+                    <label for="labelType">标签类型</label>
+                    <select id="labelType">
+                        <option value="BOX">箱贴</option>
+                        <option value="BAG">袋贴</option>
+                    </select>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="searchBtn" class="primary">查询</button>
+                <button id="diagnoseBtn">诊断</button>
+            </div>
+            <div id="products" class="list"></div>
+        </div>
+        <div id="leftStatus" class="status">待查询</div>
+    </section>
+
+    <section>
+        <div class="section-title">数据预览</div>
+        <div class="body">
+            <div class="row">
+                <div class="field">
+                    <label for="productionDate">生产日期</label>
+                    <input id="productionDate" type="date" value="2026-06-08">
+                </div>
+                <div class="field">
+                    <label for="shift">班次</label>
+                    <input id="shift" value="A">
+                </div>
+            </div>
+            <div class="actions">
+                <button id="previewBtn" class="primary">预览数据</button>
+                <button id="renderPdfBtn">生成 PDF</button>
+                <button id="renderPngBtn">生成 PNG</button>
+            </div>
+            <div id="previewGroups" class="preview-groups"></div>
+            <h3>字段来源</h3>
+            <div id="fieldSources" class="list"></div>
+        </div>
+        <div id="middleStatus" class="status">等待选择产品</div>
+    </section>
+
+    <section>
+        <div class="section-title">打印设置与日志</div>
+        <div class="body">
+            <div class="row">
+                <div class="field">
+                    <label for="bindBox">箱贴模板</label>
+                    <select id="bindBox"></select>
+                </div>
+                <div class="field">
+                    <label for="bindBag">袋贴模板</label>
+                    <select id="bindBag"></select>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="saveBindingBtn">保存绑定</button>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label for="printerName">打印机</label>
+                    <input id="printerName" value="Browser">
+                </div>
+                <div class="field">
+                    <label for="copies">份数</label>
+                    <input id="copies" type="number" min="1" value="1">
+                </div>
+            </div>
+            <div class="field">
+                <label for="operator">打印人</label>
+                <input id="operator" value="demo-user">
+            </div>
+            <div class="actions">
+                <button id="printBtn" class="primary">提交打印</button>
+                <button id="browserPrintBtn">浏览器打印</button>
+            </div>
+            <div id="outputPane" class="output"></div>
+            <h3>打印日志</h3>
+            <div id="printJobs" class="list"></div>
+        </div>
+        <div id="rightStatus" class="status">未生成文件</div>
+    </section>
+</main>
+
+<script>
+    const $ = (id) => document.getElementById(id);
+    const state = {
+        products: [],
+        templates: [],
+        binding: null,
+        selectedProduct: null,
+        previewRow: null,
+        lastOutput: null
+    };
+
+    const PREVIEW_GROUPS = [
+        ['基础信息', [
+            ['箱贴名称', 'boxLabelName'],
+            ['存货名称', 'inventoryName'],
+            ['装箱规格', 'packageSpec'],
+            ['生产日期', 'productionDate'],
+            ['班次', 'shift'],
+            ['保质期', 'shelfLife'],
+            ['贮存条件', 'storageCondition']
+        ]],
+        ['品牌与 Logo', [
+            ['品牌', 'brandName'],
+            ['品牌备注', 'addMemo'],
+            ['Logo 路径', 'logoPath'],
+            ['长 Logo', 'longLogo'],
+            ['Logo 尺寸', 'logoSize']
+        ]],
+        ['企业信息', [
+            ['公司', 'company'],
+            ['地址', 'address'],
+            ['联系方式', 'contact'],
+            ['产地', 'origin'],
+            ['公司类型', 'companyTypeName']
+        ]],
+        ['法规信息', [
+            ['生产许可证', 'productionLicenseNo'],
+            ['产品标准号', 'productStandardNo']
+        ]],
+        ['产品说明', [
+            ['净含量', 'netContent'],
+            ['产品类别', 'productClass'],
+            ['配料表', 'ingredients'],
+            ['营养成份', 'nutritionFacts'],
+            ['食用说明', 'instructions'],
+            ['致敏原', 'allergenInfo'],
+            ['温馨提示', 'reminder']
+        ]],
+        ['条码二维码', [
+            ['产品条码', 'productBarcode'],
+            ['原产品条码', 'originalProductBarcode'],
+            ['原客户条码', 'originalCustomerBarcode'],
+            ['条码类型', 'barcodeType'],
+            ['二维码内容', 'qrCode']
+        ]],
+        ['委托商', [
+            ['委托商', 'consignorName'],
+            ['委托商电话', 'consignorPhone'],
+            ['委托商地址', 'consignorAddress'],
+            ['委托类型', 'consignorType']
+        ]]
+    ];
+
+    async function api(url, options) {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            throw new Error(await response.text() || response.statusText);
+        }
+        return response.json();
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function setStatus(id, message, type) {
+        const node = $(id);
+        node.className = 'status' + (type ? ' ' + type : '');
+        node.textContent = message;
+    }
+
+    function selectedTemplateCode() {
+        if ($('labelType').value === 'BAG') return $('bindBag').value;
+        return $('bindBox').value;
+    }
+
+    function syncTemplateFromBinding() {
+        if (!state.binding) return;
+        $('bindBox').value = state.binding.boxTemplateCode || '';
+        $('bindBag').value = state.binding.bagTemplateCode || '';
+    }
+
+    async function loadTemplates() {
+        const data = await api('/api/label-templates');
+        state.templates = data.items || [];
+        const options = ['<option value="">全部模板</option>'].concat(state.templates.map((item) =>
+            `<option value="${escapeHtml(item.code)}">${escapeHtml(item.name)} / ${escapeHtml(item.code)}</option>`
+        )).join('');
+        $('templateFilter').innerHTML = options;
+        $('bindBox').innerHTML = state.templates.filter((item) => item.labelType === 'BOX').map((item) =>
+            `<option value="${escapeHtml(item.code)}">${escapeHtml(item.name)} / ${escapeHtml(item.code)}</option>`
+        ).join('');
+        $('bindBag').innerHTML = state.templates.filter((item) => item.labelType === 'BAG').map((item) =>
+            `<option value="${escapeHtml(item.code)}">${escapeHtml(item.name)} / ${escapeHtml(item.code)}</option>`
+        ).join('');
+    }
+
+    async function searchProducts() {
+        const params = new URLSearchParams();
+        params.set('keyword', $('keyword').value || '');
+        if ($('templateFilter').value) params.set('templateCode', $('templateFilter').value);
+        const data = await api('/api/name-conversions/products?' + params.toString());
+        state.products = data.items || [];
+        renderProducts();
+        setStatus('leftStatus', `查询到 ${state.products.length} 个产品`, 'ok');
+    }
+
+    function renderProducts() {
+        $('products').innerHTML = state.products.map((item) =>
+            `<button class="product ${state.selectedProduct && state.selectedProduct.productConfigId === item.productConfigId ? 'active' : ''}" data-id="${escapeHtml(item.productConfigId)}">
+                <strong>${escapeHtml(item.inventoryName || item.boxLabelName)}</strong>
+                <span class="muted">${escapeHtml(item.productConfigId)} / ${escapeHtml(item.brandName)} / ${escapeHtml(item.boxTemplateCode)}</span>
+            </button>`
+        ).join('');
+        Array.prototype.forEach.call(document.querySelectorAll('.product'), (button) => {
+            button.onclick = () => selectProduct(button.getAttribute('data-id'));
+        });
+    }
+
+    async function selectProduct(productConfigId) {
+        state.selectedProduct = state.products.find((item) => item.productConfigId === productConfigId);
+        renderProducts();
+        await loadBinding(productConfigId);
+        await loadFieldSources(productConfigId);
+        setStatus('middleStatus', productConfigId, 'ok');
+    }
+
+    async function loadBinding(productConfigId) {
+        state.binding = await api('/api/product-template-bindings/' + encodeURIComponent(productConfigId));
+        syncTemplateFromBinding();
+    }
+
+    async function saveBinding() {
+        if (!state.selectedProduct) return;
+        state.binding = await api('/api/product-template-bindings/' + encodeURIComponent(state.selectedProduct.productConfigId), {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({boxTemplateCode: $('bindBox').value, bagTemplateCode: $('bindBag').value})
+        });
+        setStatus('rightStatus', '模板绑定已保存', 'ok');
+    }
+
+    function groupFieldSources(items) {
+        return (items || []).reduce((groups, item) => {
+            const category = item.category || '未分组';
+            if (!groups[category]) groups[category] = [];
+            groups[category].push(item);
+            return groups;
+        }, {});
+    }
+
+    async function loadFieldSources(productConfigId) {
+        const detail = await api('/api/name-conversions/' + encodeURIComponent(productConfigId));
+        renderFieldSources(detail.fieldSources || []);
+    }
+
+    function renderFieldSources(items) {
+        const groups = groupFieldSources(items);
+        $('fieldSources').innerHTML = Object.keys(groups).map((category) => {
+            const rows = groups[category].map((item) => {
+                const statusClass = item.fieldStatus === 'MISSING' ? 'status-missing' : (item.fieldStatus === 'FALLBACK' ? 'status-fallback' : 'status-ok');
+                return `<div class="source-item">
+                    <span class="source-display-name">${escapeHtml(item.displayName)}</span>
+                    <span class="source-field-name">${escapeHtml(item.fieldName)} / ${escapeHtml(item.sourceType)}</span>
+                    <span class="source-status ${statusClass}">${escapeHtml(item.fieldStatus)}</span>
+                </div>`;
+            }).join('');
+            return `<div class="source-category"><span>${escapeHtml(category)}</span><span class="source-count">${groups[category].length} 项</span></div>${rows}`;
+        }).join('');
+    }
+
+    function renderPreviewGroups(row) {
+        $('previewGroups').innerHTML = PREVIEW_GROUPS.map(([groupName, fields]) => {
+            const rows = fields.map(([label, field]) =>
+                `<div class="kv"><span>${escapeHtml(label)}</span>${escapeHtml(row && row[field])}</div>`
+            ).join('');
+            return `<div class="preview-group"><div class="source-category"><span>${escapeHtml(groupName)}</span><span class="source-count">${fields.length} 项</span></div><div class="kv-grid">${rows}</div></div>`;
+        }).join('');
+    }
+
+    async function preview() {
+        if (!state.selectedProduct) return;
+        const data = await api('/api/box-labels/preview', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                productConfigId: state.selectedProduct.productConfigId,
+                productionDate: $('productionDate').value,
+                shift: $('shift').value,
+                labelType: $('labelType').value,
+                templateCode: selectedTemplateCode()
+            })
+        });
+        state.previewRow = data.row;
+        renderPreviewGroups(data.row);
+        setStatus('middleStatus', `${data.templateCode} / ${data.mode}`, 'ok');
+    }
+
+    async function render(format) {
+        if (!state.selectedProduct) return;
+        const data = await api('/api/box-labels/render', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                productConfigId: state.selectedProduct.productConfigId,
+                productionDate: $('productionDate').value,
+                shift: $('shift').value,
+                labelType: $('labelType').value,
+                templateCode: selectedTemplateCode(),
+                format: format
+            })
+        });
+        state.lastOutput = data;
+        $('outputPane').innerHTML = format === 'PDF'
+            ? `<iframe src="${escapeHtml(data.previewUrl)}"></iframe>`
+            : `<img alt="箱贴预览" src="${escapeHtml(data.previewUrl)}">`;
+        setStatus('rightStatus', `${data.templateCode} / ${data.format} / ${data.sizeBytes} bytes`, 'ok');
+    }
+
+    async function printJob() {
+        if (!state.selectedProduct) return;
+        const data = await api('/api/box-labels/print', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                productConfigId: state.selectedProduct.productConfigId,
+                productionDate: $('productionDate').value,
+                shift: $('shift').value,
+                labelType: $('labelType').value,
+                templateCode: selectedTemplateCode(),
+                format: 'PDF',
+                printerName: $('printerName').value,
+                copies: Number($('copies').value || 1),
+                operator: $('operator').value
+            })
+        });
+        state.lastOutput = data.output;
+        setStatus('rightStatus', `${data.status} / ${data.output.templateCode}`, 'ok');
+        await loadJobs();
+    }
+
+    async function loadJobs() {
+        const data = await api('/api/box-labels/print-jobs');
+        $('printJobs').innerHTML = (data.items || []).map((item) =>
+            `<div class="job">
+                <strong>${escapeHtml(item.productConfigId)}</strong>
+                <span class="muted">${escapeHtml(item.labelType)} / ${escapeHtml(item.operator)} / ${escapeHtml(item.printerName)} / ${escapeHtml(item.copies)} 份</span>
+                <span><span class="job-template">${escapeHtml(item.output && item.output.templateCode)}</span> / ${escapeHtml(item.status)}</span>
+            </div>`
+        ).join('');
+    }
+
+    async function diagnose() {
+        if (!state.selectedProduct) return;
+        const data = await api('/api/box-labels/diagnostics/' + encodeURIComponent(state.selectedProduct.productConfigId));
+        setStatus('leftStatus', `缺失字段 ${data.missingRequiredFields.length} 个，模板 ${data.templateAvailable ? '可用' : '缺失'}`, data.missingRequiredFields.length ? 'error' : 'ok');
+    }
+
+    $('searchBtn').onclick = searchProducts;
+    $('diagnoseBtn').onclick = diagnose;
+    $('previewBtn').onclick = preview;
+    $('renderPdfBtn').onclick = () => render('PDF');
+    $('renderPngBtn').onclick = () => render('PNG');
+    $('printBtn').onclick = printJob;
+    $('browserPrintBtn').onclick = () => state.lastOutput && window.open(state.lastOutput.previewUrl, '_blank');
+    $('saveBindingBtn').onclick = saveBinding;
+    $('labelType').onchange = syncTemplateFromBinding;
+
+    loadTemplates().then(searchProducts).then(loadJobs).catch((error) => setStatus('leftStatus', error.message, 'error'));
+</script>
+</body>
+</html>

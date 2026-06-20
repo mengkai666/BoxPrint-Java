@@ -1,0 +1,126 @@
+### Web workspace
+GET http://localhost:8088/
+
+### Field contract
+GET http://localhost:8088/api/box-labels/field-contract
+Accept: application/json
+
+### Name Conversion products
+GET http://localhost:8088/api/name-conversions/products?keyword=示例
+Accept: application/json
+
+### Name Conversion detail
+GET http://localhost:8088/api/name-conversions/DEMO-BOX-001
+Accept: application/json
+
+### Label templates
+GET http://localhost:8088/api/label-templates?labelType=BOX
+Accept: application/json
+
+### Create config-layout template
+POST http://localhost:8088/api/label-templates
+Content-Type: application/json
+Accept: application/json
+
+{
+  "code": "box-custom",
+  "name": "自定义箱贴",
+  "labelType": "BOX",
+  "pageWidthMm": 120,
+  "pageHeightMm": 80
+}
+
+### Save template elements
+PUT http://localhost:8088/api/label-templates/box-custom/elements
+Content-Type: application/json
+Accept: application/json
+
+{
+  "elements": [
+    {"type": "STATIC_TEXT", "text": "自定义箱贴", "leftMm": 4, "topMm": 4, "widthMm": 70, "heightMm": 8, "fontSize": 14, "bold": true},
+    {"type": "FIELD_TEXT", "fieldName": "boxLabelName", "leftMm": 4, "topMm": 14, "widthMm": 90, "heightMm": 8, "fontSize": 12},
+    {"type": "FIELD_TEXT", "fieldName": "packageSpec", "leftMm": 4, "topMm": 24, "widthMm": 70, "heightMm": 7, "fontSize": 10},
+    {"type": "BARCODE", "leftMm": 4, "topMm": 56, "widthMm": 65, "heightMm": 16},
+    {"type": "QRCODE", "leftMm": 92, "topMm": 48, "widthMm": 22, "heightMm": 22}
+  ]
+}
+
+### Save product binding
+PUT http://localhost:8088/api/product-template-bindings/DEMO-BOX-001
+Content-Type: application/json
+Accept: application/json
+
+{
+  "boxTemplateCode": "box-custom",
+  "bagTemplateCode": "bag-standard"
+}
+
+### Import legacy template draft
+POST http://localhost:8088/api/template-imports/from-legacy
+Content-Type: application/json
+Accept: application/json
+
+{
+  "labelType": "BOX",
+  "legacyTemplateId": "00000",
+  "legacyTemplateName": "旧箱贴模板"
+}
+
+### Import image draft
+POST http://localhost:8088/api/template-imports/from-image
+Content-Type: application/json
+Accept: application/json
+
+{
+  "labelType": "BOX",
+  "sampleName": "box-sample.png"
+}
+
+### Preview through product binding
+POST http://localhost:8088/api/box-labels/preview
+Content-Type: application/json
+Accept: application/json
+
+{
+  "productConfigId": "DEMO-BOX-001",
+  "productionDate": "2026-06-08",
+  "shift": "A",
+  "labelType": "BOX"
+}
+
+### Render PDF
+POST http://localhost:8088/api/box-labels/render
+Content-Type: application/json
+Accept: application/json
+
+{
+  "productConfigId": "DEMO-BOX-001",
+  "productionDate": "2026-06-08",
+  "shift": "A",
+  "labelType": "BOX",
+  "format": "PDF"
+}
+
+### Print job
+POST http://localhost:8088/api/box-labels/print
+Content-Type: application/json
+Accept: application/json
+
+{
+  "productConfigId": "DEMO-BOX-001",
+  "productionDate": "2026-06-08",
+  "shift": "A",
+  "labelType": "BOX",
+  "format": "PDF",
+  "printerName": "浏览器默认打印机",
+  "copies": 1,
+  "operator": "operator"
+}
+
+### Print jobs
+GET http://localhost:8088/api/box-labels/print-jobs
+Accept: application/json
+
+### Diagnostics
+GET http://localhost:8088/api/box-labels/diagnostics/DEMO-BOX-001
+Accept: application/json

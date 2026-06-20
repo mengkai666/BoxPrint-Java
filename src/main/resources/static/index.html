@@ -1,0 +1,1294 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>箱贴打印工作台</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #172026;
+            --muted: #5d6975;
+            --line: #d8dee5;
+            --panel: #fff;
+            --bg: #f3f5f7;
+            --accent: #0f766e;
+            --accent-dark: #0a5e58;
+            --danger: #b42318;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+            font-size: 14px;
+        }
+
+        header {
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 22px;
+            background: #111827;
+            color: #fff;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 0;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: minmax(290px, 360px) minmax(420px, 1fr) minmax(360px, 460px);
+            gap: 12px;
+            padding: 12px;
+            min-height: calc(100vh - 56px);
+        }
+
+        section {
+            min-width: 0;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-title {
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            border-bottom: 1px solid var(--line);
+            background: #fafbfc;
+            font-weight: 650;
+        }
+
+        .body {
+            padding: 14px;
+            overflow: auto;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        input, select {
+            width: 100%;
+            height: 34px;
+            border: 1px solid #c6ccd3;
+            border-radius: 4px;
+            padding: 0 9px;
+            background: #fff;
+            font: inherit;
+        }
+
+        button {
+            height: 34px;
+            border: 1px solid #b8c0c8;
+            border-radius: 4px;
+            padding: 0 11px;
+            background: #fff;
+            color: var(--ink);
+            font: inherit;
+            cursor: pointer;
+        }
+
+        button.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        button.primary:hover { background: var(--accent-dark); }
+
+        .field { margin-bottom: 11px; }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 8px 0 12px;
+        }
+
+        .list {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .product {
+            width: 100%;
+            min-height: 56px;
+            border: 0;
+            border-bottom: 1px solid var(--line);
+            border-radius: 0;
+            display: grid;
+            gap: 4px;
+            text-align: left;
+            padding: 8px 10px;
+        }
+
+        .product:last-child { border-bottom: 0; }
+
+        .product.active {
+            background: #e8f5f3;
+            border-left: 3px solid var(--accent);
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .kv-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .kv {
+            min-height: 50px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 8px;
+            overflow-wrap: anywhere;
+        }
+
+        .kv span {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .output {
+            min-height: 300px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            overflow: hidden;
+            background: #edf0f3;
+        }
+
+        .output iframe, .output img {
+            width: 100%;
+            height: 390px;
+            border: 0;
+            display: block;
+            object-fit: contain;
+            background: #fff;
+        }
+
+        .status {
+            min-height: 34px;
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .status.ok { color: var(--accent-dark); }
+        .status.error { color: var(--danger); }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 4px;
+            background: #e8f5f3;
+            color: var(--accent-dark);
+            font-size: 12px;
+        }
+
+        .block {
+            border-top: 1px solid var(--line);
+            margin-top: 14px;
+            padding-top: 14px;
+        }
+
+        .source-group {
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .source-category {
+            min-height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 10px;
+            background: #f7faf9;
+            border-bottom: 1px solid var(--line);
+            color: var(--accent-dark);
+            font-weight: 650;
+        }
+
+        .source-count {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 400;
+        }
+
+        .source-line, .job-line {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            gap: 10px;
+            padding: 7px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .source-group .source-line {
+            grid-template-columns: minmax(96px, 128px) minmax(0, 1fr);
+            padding: 9px 10px;
+        }
+
+        .source-group .source-line:last-child { border-bottom: 0; }
+
+        .source-display-name {
+            display: inline;
+            margin-bottom: 3px;
+            font-size: 13px;
+        }
+
+        .source-status {
+            display: inline-flex;
+            align-items: center;
+            height: 20px;
+            margin-left: 6px;
+            padding: 0 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            vertical-align: 1px;
+        }
+
+        .status-ok {
+            background: #e8f5f3;
+            color: var(--accent-dark);
+        }
+
+        .status-missing {
+            background: #fff1f0;
+            color: var(--danger);
+        }
+
+        .status-fallback {
+            background: #fff7e6;
+            color: #9a5b00;
+        }
+
+        .source-field-name {
+            display: block;
+            color: var(--muted);
+            font-size: 11px;
+            overflow-wrap: anywhere;
+        }
+
+        .source-value {
+            min-height: 18px;
+            margin-bottom: 4px;
+            overflow-wrap: anywhere;
+            white-space: normal;
+        }
+
+        .template-editor {
+            display: grid;
+            grid-template-columns: minmax(112px, 138px) minmax(0, 1fr);
+            gap: 10px;
+            align-items: start;
+        }
+
+        .field-palette {
+            display: grid;
+            gap: 6px;
+        }
+
+        .field-palette button {
+            height: auto;
+            min-height: 30px;
+            padding: 6px 8px;
+            text-align: left;
+            overflow-wrap: anywhere;
+        }
+
+        .editor-stage {
+            min-width: 0;
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: #edf0f3;
+            padding: 10px;
+        }
+
+        .template-canvas {
+            position: relative;
+            min-width: 240px;
+            min-height: 160px;
+            background: #fff;
+            border: 1px solid #9aa4af;
+            box-shadow: 0 1px 2px rgba(17, 24, 39, 0.12);
+        }
+
+        .template-element {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            min-width: 8px;
+            min-height: 8px;
+            border: 1px dashed #6b7280;
+            padding: 1px 3px;
+            color: #111827;
+            background: rgba(255, 255, 255, 0.86);
+            cursor: move;
+            overflow: hidden;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .template-element.selected {
+            border: 2px solid var(--accent);
+            background: #e8f5f3;
+            z-index: 2;
+        }
+
+        .template-element.media {
+            justify-content: center;
+            color: var(--muted);
+            background: #f8fafc;
+        }
+
+        .template-element.shape {
+            padding: 0;
+            background: transparent;
+        }
+
+        .element-inspector {
+            margin-top: 10px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            padding: 10px;
+            background: #fff;
+        }
+
+        .element-inspector .row {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .element-inspector input[type="checkbox"] {
+            width: auto;
+            height: auto;
+        }
+
+        @media (max-width: 1120px) {
+            main { grid-template-columns: 1fr; }
+            .output iframe, .output img { height: 340px; }
+            .template-editor { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>箱贴打印工作台</h1>
+    <span class="badge" id="templateBadge">CONFIG_LAYOUT</span>
+</header>
+<main>
+    <section>
+        <div class="section-title">Name Conversion</div>
+        <div class="body">
+            <div class="field">
+                <label for="keyword">关键字</label>
+                <input id="keyword" value="示例">
+            </div>
+            <div class="actions">
+                <button class="primary" id="searchBtn">查询</button>
+                <button id="detailBtn">详情</button>
+                <button id="diagBtn">诊断</button>
+            </div>
+            <div class="field">
+                <label>产品</label>
+                <div class="list" id="products"></div>
+            </div>
+            <div class="block">
+                <div class="row">
+                    <div class="field">
+                        <label for="bindBox">箱贴模板</label>
+                        <select id="bindBox"></select>
+                    </div>
+                    <div class="field">
+                        <label for="bindBag">袋贴模板</label>
+                        <select id="bindBag"></select>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button class="primary" id="saveBindingBtn">保存绑定</button>
+                </div>
+            </div>
+            <div class="block" id="fieldSources"></div>
+        </div>
+        <div class="status" id="leftStatus">等待查询</div>
+    </section>
+
+    <section>
+        <div class="section-title">
+            <span>预览与打印</span>
+            <span class="muted" id="selectedProduct">未选择</span>
+        </div>
+        <div class="body">
+            <div class="row">
+                <div class="field">
+                    <label for="productionDate">生产日期</label>
+                    <input id="productionDate" type="date" value="2026-06-08">
+                </div>
+                <div class="field">
+                    <label for="shift">班次</label>
+                    <select id="shift"><option>A</option><option>B</option><option>C</option></select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label for="labelType">类型</label>
+                    <select id="labelType"><option value="BOX">箱贴</option><option value="BAG">袋贴</option></select>
+                </div>
+                <div class="field">
+                    <label for="templateCode">打印模板</label>
+                    <select id="templateCode"></select>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="primary" id="previewBtn">预览数据</button>
+                <button id="renderPdfBtn">生成 PDF</button>
+                <button id="renderPngBtn">生成 PNG</button>
+            </div>
+            <div class="kv-grid" id="previewFields"></div>
+            <div class="block">
+                <div class="output" id="outputPane"></div>
+                <div class="row" style="margin-top: 12px;">
+                    <div class="field">
+                        <label for="printerName">打印机</label>
+                        <input id="printerName" value="浏览器默认打印机">
+                    </div>
+                    <div class="field">
+                        <label for="copies">份数</label>
+                        <input id="copies" type="number" min="1" value="1">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="operator">操作员</label>
+                    <input id="operator" value="operator">
+                </div>
+                <div class="actions">
+                    <button class="primary" id="printBtn">提交打印</button>
+                    <button id="browserPrintBtn">浏览器打印</button>
+                    <button id="jobsBtn">刷新日志</button>
+                </div>
+                <div id="printJobs"></div>
+            </div>
+        </div>
+        <div class="status" id="middleStatus">等待预览</div>
+    </section>
+
+    <section>
+        <div class="section-title">模板维护</div>
+        <div class="body">
+            <div class="row">
+                <div class="field">
+                    <label for="tplCode">编码</label>
+                    <input id="tplCode" value="box-custom">
+                </div>
+                <div class="field">
+                    <label for="tplName">名称</label>
+                    <input id="tplName" value="自定义箱贴">
+                </div>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label for="tplType">类型</label>
+                    <select id="tplType"><option value="BOX">箱贴</option><option value="BAG">袋贴</option></select>
+                </div>
+                <div class="field">
+                    <label for="tplSize">纸张</label>
+                    <select id="tplSize"><option value="120,80">120 x 80 mm</option><option value="80,50">80 x 50 mm</option></select>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="primary" id="saveTemplateBtn">保存模板</button>
+                <button id="saveElementsBtn">保存元素</button>
+                <button id="legacyImportBtn">旧模板导入</button>
+                <button id="imageImportBtn">样张识别</button>
+            </div>
+            <div class="block">
+                <div class="template-editor">
+                    <div>
+                        <label>字段面板</label>
+                        <div class="field-palette" id="fieldPalette"></div>
+                    </div>
+                    <div>
+                        <div class="actions">
+                            <button id="addTextElementBtn">固定文本</button>
+                            <button id="addBarcodeElementBtn">条码</button>
+                            <button id="addQrElementBtn">二维码</button>
+                            <button id="addLogoElementBtn">Logo</button>
+                            <button id="addLineElementBtn">线条</button>
+                            <button id="addRectElementBtn">边框</button>
+                            <button id="deleteElementBtn">删除</button>
+                        </div>
+                        <div class="editor-stage">
+                            <div class="template-canvas" id="templateCanvas"></div>
+                        </div>
+                        <div class="element-inspector" id="elementInspector"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="block">
+                <div class="field">
+                    <label>模板列表</label>
+                    <div class="list" id="templates"></div>
+                </div>
+            </div>
+            <div class="block" id="diagnostics"></div>
+        </div>
+        <div class="status" id="rightStatus">等待模板操作</div>
+    </section>
+</main>
+<script>
+    const state = {
+        productConfigId: null,
+        outputUrl: null,
+        outputFormat: 'PDF',
+        templates: [],
+        binding: null,
+        editorTemplate: null,
+        editorElements: [],
+        selectedElementId: null,
+        editorScale: 4
+    };
+    const $ = (id) => document.getElementById(id);
+    const EDITOR_FIELDS = [
+        ['boxLabelName', '箱贴名称'],
+        ['packageSpec', '装箱规格'],
+        ['brandName', '品牌'],
+        ['productionDate', '生产日期'],
+        ['shelfLife', '保质期'],
+        ['storageCondition', '贮存条件'],
+        ['productBarcode', '产品条码'],
+        ['qrCode', '二维码内容'],
+        ['company', '公司'],
+        ['address', '地址'],
+        ['productionLicenseNo', '生产许可证'],
+        ['productStandardNo', '产品标准号'],
+        ['ingredients', '配料表'],
+        ['nutritionFacts', '营养成份'],
+        ['netContent', '净含量'],
+        ['productClass', '产品类别']
+    ];
+    const ELEMENT_LABELS = {
+        STATIC_TEXT: '固定文本',
+        FIELD_TEXT: '字段',
+        BARCODE: '条码',
+        QRCODE: '二维码',
+        LOGO: 'Logo',
+        LINE: '线条',
+        RECTANGLE: '边框'
+    };
+
+    function setStatus(id, text, kind) {
+        const node = $(id);
+        node.textContent = text;
+        node.className = 'status ' + (kind || '');
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    async function api(url, options) {
+        const response = await fetch(url, options || {});
+        if (!response.ok) throw new Error(await response.text() || response.statusText);
+        return response.json();
+    }
+
+    function payload(format) {
+        return {
+            productConfigId: state.productConfigId,
+            productionDate: $('productionDate').value,
+            shift: $('shift').value,
+            labelType: $('labelType').value,
+            templateCode: $('templateCode').value,
+            format: format || state.outputFormat
+        };
+    }
+
+    function renderProducts(items) {
+        $('products').innerHTML = '';
+        items.forEach((item, index) => {
+            const button = document.createElement('button');
+            button.className = 'product' + (index === 0 ? ' active' : '');
+            button.innerHTML = `<strong>${item.inventoryName}</strong><span class="muted">${item.inventoryCode} / ${item.brandName} / ${item.boxTemplateName}</span>`;
+            button.onclick = () => {
+                document.querySelectorAll('.product').forEach((node) => node.classList.remove('active'));
+                button.classList.add('active');
+                selectProduct(item);
+            };
+            $('products').appendChild(button);
+            if (index === 0) selectProduct(item);
+        });
+    }
+
+    function selectProduct(item) {
+        state.productConfigId = item.productConfigId;
+        $('selectedProduct').textContent = `${item.inventoryName} / ${item.productConfigId}`;
+        loadBinding();
+        setStatus('leftStatus', `已选择 ${item.inventoryName}`, 'ok');
+    }
+
+    function renderTemplateList(items) {
+        $('templates').innerHTML = items.map((item) =>
+            `<button class="product" onclick="selectTemplate('${item.code}')"><strong>${item.code}</strong><span class="muted">${item.name} / ${item.labelType} / ${item.engine} / v${item.version}</span></button>`
+        ).join('');
+    }
+
+    function selectTemplate(code) {
+        const template = state.templates.find((item) => item.code === code);
+        if (template) {
+            $('labelType').value = template.labelType;
+            $('tplCode').value = template.code;
+            $('tplName').value = template.name;
+            $('tplType').value = template.labelType;
+            $('tplSize').value = `${template.pageWidthMm || 120},${template.pageHeightMm || 80}`;
+            renderTemplateOptions(template.labelType);
+            $('templateCode').value = template.code;
+            loadTemplateIntoEditor(template);
+            $('templateBadge').textContent = template.engine;
+            setStatus('rightStatus', `已选择模板 ${code}`, 'ok');
+            return;
+        }
+        $('tplCode').value = code;
+        setStatus('rightStatus', `已选择模板 ${code}`, 'ok');
+    }
+    window.selectTemplate = selectTemplate;
+
+    function renderTemplateOptions(labelType) {
+        const selectedType = labelType || $('labelType').value || 'BOX';
+        const candidates = state.templates.filter((item) => item.labelType === selectedType);
+        $('templateCode').innerHTML = candidates.map((item) => `<option value="${item.code}">${item.name} ${item.version}</option>`).join('');
+        if (candidates.length && !candidates.some((item) => item.code === $('templateCode').value)) {
+            $('templateCode').value = candidates[0].code;
+        }
+    }
+
+    function boundTemplateCode(labelType) {
+        if (!state.binding) return null;
+        return labelType === 'BAG' ? state.binding.bagTemplateCode : state.binding.boxTemplateCode;
+    }
+
+    function syncTemplateFromBinding() {
+        const labelType = $('labelType').value || 'BOX';
+        renderTemplateOptions(labelType);
+        const templateCode = boundTemplateCode(labelType);
+        if (templateCode && state.templates.some((item) => item.code === templateCode && item.labelType === labelType)) {
+            $('templateCode').value = templateCode;
+        }
+        const selectedTemplate = state.templates.find((item) => item.code === $('templateCode').value);
+        if (selectedTemplate) {
+            loadTemplateIntoEditor(selectedTemplate);
+        }
+    }
+
+    function renderPreview(row) {
+        const fields = [
+            ['箱贴名称', row.boxLabelName],
+            ['装箱规格', row.packageSpec],
+            ['品牌', row.brandName],
+            ['生产日期', row.productionDate],
+            ['贮存条件', row.storageCondition],
+            ['保质期', row.shelfLife],
+            ['产品条码', row.productBarcode],
+            ['公司', row.company],
+            ['地址', row.address],
+            ['产品标准号', row.productStandardNo]
+        ];
+        $('previewFields').innerHTML = fields.map(([key, value]) => `<div class="kv"><span>${key}</span>${value || ''}</div>`).join('');
+    }
+
+    function groupFieldSources(items) {
+        return (items || []).reduce((groups, item) => {
+            const category = item.category || '基础字段';
+            if (!groups[category]) groups[category] = [];
+            groups[category].push(item);
+            return groups;
+        }, {});
+    }
+
+    function renderFieldSources(items) {
+        const groups = groupFieldSources(items);
+        const categoryNames = Object.keys(groups);
+        if (!categoryNames.length) {
+            $('fieldSources').innerHTML = '<span class="muted">暂无字段来源</span>';
+            return;
+        }
+        $('fieldSources').innerHTML = categoryNames.map((category) => {
+            const rows = groups[category].map((item) =>
+                `<div class="source-line">` +
+                `<strong><span class="source-display-name">${escapeHtml(item.displayName || item.fieldName)}</span>` +
+                `<span class="source-status ${fieldStatusClass(item.fieldStatus)}">${escapeHtml(item.statusText || item.fieldStatus || '')}</span>` +
+                `<span class="source-field-name">${escapeHtml(item.fieldName)}</span></strong>` +
+                `<span><div class="source-value">${escapeHtml(item.value)}</div><span class="muted">${escapeHtml(item.source)} / ${escapeHtml(item.sourceType || '')}</span></span>` +
+                `</div>`
+            ).join('');
+            return `<div class="source-group">` +
+                `<div class="source-category"><span>${escapeHtml(category)}</span><span class="source-count">${groups[category].length} 项</span></div>` +
+                rows +
+                `</div>`;
+        }).join('');
+    }
+
+    function fieldStatusClass(status) {
+        if (status === 'MISSING') return 'status-missing';
+        if (status === 'FALLBACK') return 'status-fallback';
+        return 'status-ok';
+    }
+
+    function renderFieldPalette() {
+        const panel = $('fieldPalette');
+        panel.innerHTML = '';
+        EDITOR_FIELDS.forEach(([fieldName, displayName]) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.innerHTML = `<strong>${escapeHtml(displayName)}</strong><span class="source-field-name">${escapeHtml(fieldName)}</span>`;
+            button.onclick = () => addTemplateElement('FIELD_TEXT', fieldName);
+            panel.appendChild(button);
+        });
+    }
+
+    function loadTemplateIntoEditor(template) {
+        state.editorTemplate = template || null;
+        state.editorElements = copyEditorElements(template ? template.elements : []);
+        state.selectedElementId = state.editorElements.length ? state.editorElements[0].id : null;
+        renderTemplateEditor(template);
+    }
+
+    function copyEditorElements(elements) {
+        return (elements || []).map((element, index) => ({
+            id: element.id || newElementId(),
+            sortOrder: element.sortOrder || index + 1,
+            type: (element.type || 'STATIC_TEXT').toUpperCase(),
+            text: element.text || '',
+            fieldName: element.fieldName || '',
+            leftMm: numberOr(element.leftMm, 4),
+            topMm: numberOr(element.topMm, 4 + index * 6),
+            widthMm: numberOr(element.widthMm, 30),
+            heightMm: numberOr(element.heightMm, 7),
+            fontSize: Number(element.fontSize || 10),
+            bold: Boolean(element.bold)
+        }));
+    }
+
+    function renderTemplateEditor(template) {
+        const current = template || state.editorTemplate;
+        const canvas = $('templateCanvas');
+        if (!current) {
+            canvas.style.width = '320px';
+            canvas.style.height = '210px';
+            canvas.innerHTML = '';
+            $('elementInspector').innerHTML = '<span class="muted">暂无模板</span>';
+            return;
+        }
+        const scale = state.editorScale;
+        canvas.style.width = `${Math.max(40, current.pageWidthMm || 120) * scale}px`;
+        canvas.style.height = `${Math.max(30, current.pageHeightMm || 80) * scale}px`;
+        canvas.innerHTML = '';
+        state.editorElements.forEach((element) => {
+            const node = document.createElement('div');
+            node.className = editorElementClass(element);
+            node.style.left = `${element.leftMm * scale}px`;
+            node.style.top = `${element.topMm * scale}px`;
+            node.style.width = `${Math.max(1, element.widthMm) * scale}px`;
+            node.style.height = `${Math.max(1, element.heightMm) * scale}px`;
+            node.style.fontSize = `${Math.max(8, element.fontSize || 10)}px`;
+            node.style.fontWeight = element.bold ? '700' : '400';
+            styleElementNode(node, element);
+            node.textContent = editorElementText(element);
+            node.onclick = (event) => {
+                event.stopPropagation();
+                selectEditorElement(element.id);
+            };
+            node.onmousedown = (event) => beginElementDrag(event, element.id);
+            canvas.appendChild(node);
+        });
+        canvas.onclick = () => {
+            state.selectedElementId = null;
+            renderTemplateEditor(state.editorTemplate);
+        };
+        renderElementInspector();
+    }
+
+    function editorElementClass(element) {
+        let className = 'template-element';
+        if (element.id === state.selectedElementId) className += ' selected';
+        if (['BARCODE', 'QRCODE', 'LOGO'].indexOf(element.type) >= 0) className += ' media';
+        if (['LINE', 'RECTANGLE'].indexOf(element.type) >= 0) className += ' shape';
+        return className;
+    }
+
+    function styleElementNode(node, element) {
+        if (element.type === 'LINE') {
+            node.style.height = '2px';
+            node.style.border = '0';
+            node.style.borderTop = '2px solid #111827';
+        }
+        if (element.type === 'RECTANGLE') {
+            node.style.border = '1px solid #111827';
+        }
+    }
+
+    function editorElementText(element) {
+        if (element.type === 'STATIC_TEXT') return element.text || '固定文本';
+        if (element.type === 'FIELD_TEXT') return fieldDisplayName(element.fieldName);
+        if (element.type === 'BARCODE') return 'Code128';
+        if (element.type === 'QRCODE') return 'QR';
+        if (element.type === 'LOGO') return 'Logo';
+        return '';
+    }
+
+    function fieldDisplayName(fieldName) {
+        const found = EDITOR_FIELDS.find(([name]) => name === fieldName);
+        return found ? found[1] : (fieldName || '字段');
+    }
+
+    function renderElementInspector() {
+        const template = state.editorTemplate;
+        if (!template) {
+            $('elementInspector').innerHTML = '<span class="muted">暂无模板</span>';
+            return;
+        }
+        if (template.engine !== 'CONFIG_LAYOUT') {
+            $('elementInspector').innerHTML = '<span class="muted">JASPER 内置模板只读；新建 CONFIG_LAYOUT 模板后可编辑。</span>';
+            return;
+        }
+        const element = selectedEditorElement();
+        if (!element) {
+            $('elementInspector').innerHTML = '<span class="muted">选择或新增元素</span>';
+            return;
+        }
+        $('elementInspector').innerHTML = `
+            <div class="row">
+                <div class="field"><label>左 mm</label><input type="number" step="0.5" value="${element.leftMm}" oninput="updateSelectedElement('leftMm', this.value)"></div>
+                <div class="field"><label>上 mm</label><input type="number" step="0.5" value="${element.topMm}" oninput="updateSelectedElement('topMm', this.value)"></div>
+                <div class="field"><label>宽 mm</label><input type="number" step="0.5" value="${element.widthMm}" oninput="updateSelectedElement('widthMm', this.value)"></div>
+                <div class="field"><label>高 mm</label><input type="number" step="0.5" value="${element.heightMm}" oninput="updateSelectedElement('heightMm', this.value)"></div>
+            </div>
+            <div class="row">
+                <div class="field"><label>类型</label><select onchange="updateSelectedElement('type', this.value)">${elementTypeOptions(element.type)}</select></div>
+                <div class="field"><label>字号</label><input type="number" min="6" value="${element.fontSize}" oninput="updateSelectedElement('fontSize', this.value)"></div>
+                <div class="field"><label>加粗</label><input type="checkbox" ${element.bold ? 'checked' : ''} onchange="updateSelectedElement('bold', this.checked)"></div>
+                <div class="field"><label>排序</label><input type="number" min="1" value="${element.sortOrder}" oninput="updateSelectedElement('sortOrder', this.value)"></div>
+            </div>
+            <div class="row">
+                <div class="field"><label>文本</label><input value="${escapeHtml(element.text)}" oninput="updateSelectedElement('text', this.value)"></div>
+                <div class="field"><label>字段</label><select onchange="updateSelectedElement('fieldName', this.value)">${fieldOptions(element.fieldName)}</select></div>
+            </div>`;
+    }
+
+    function elementTypeOptions(selected) {
+        return Object.keys(ELEMENT_LABELS).map((type) =>
+            `<option value="${type}" ${type === selected ? 'selected' : ''}>${ELEMENT_LABELS[type]}</option>`
+        ).join('');
+    }
+
+    function fieldOptions(selected) {
+        return [''].concat(EDITOR_FIELDS.map(([name]) => name)).map((fieldName) => {
+            const label = fieldName ? fieldDisplayName(fieldName) + ' / ' + fieldName : '无';
+            return `<option value="${fieldName}" ${fieldName === selected ? 'selected' : ''}>${label}</option>`;
+        }).join('');
+    }
+
+    function addTemplateElement(type, fieldName) {
+        if (!state.editorTemplate || state.editorTemplate.engine !== 'CONFIG_LAYOUT') {
+            setStatus('rightStatus', '请选择可编辑的 CONFIG_LAYOUT 模板', 'error');
+            return;
+        }
+        const pageWidth = state.editorTemplate.pageWidthMm || 120;
+        const pageHeight = state.editorTemplate.pageHeightMm || 80;
+        const index = state.editorElements.length + 1;
+        const element = {
+            id: newElementId(),
+            sortOrder: index,
+            type: type,
+            text: type === 'STATIC_TEXT' ? '固定文本' : '',
+            fieldName: fieldName || '',
+            leftMm: 4,
+            topMm: Math.min(pageHeight - 8, 4 + state.editorElements.length * 6),
+            widthMm: 42,
+            heightMm: 7,
+            fontSize: 10,
+            bold: false
+        };
+        if (type === 'BARCODE') Object.assign(element, {leftMm: 4, topMm: pageHeight - 22, widthMm: 65, heightMm: 16});
+        if (type === 'QRCODE') Object.assign(element, {leftMm: pageWidth - 26, topMm: pageHeight - 26, widthMm: 22, heightMm: 22});
+        if (type === 'LOGO') Object.assign(element, {leftMm: pageWidth - 30, topMm: 4, widthMm: 24, heightMm: 14});
+        if (type === 'LINE') Object.assign(element, {leftMm: 4, topMm: 12, widthMm: pageWidth - 8, heightMm: 1});
+        if (type === 'RECTANGLE') Object.assign(element, {leftMm: 2, topMm: 2, widthMm: pageWidth - 4, heightMm: pageHeight - 4});
+        state.editorElements.push(element);
+        state.selectedElementId = element.id;
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    function beginElementDrag(event, elementId) {
+        if (!state.editorTemplate || state.editorTemplate.engine !== 'CONFIG_LAYOUT' || event.button !== 0) return;
+        const element = state.editorElements.find((item) => item.id === elementId);
+        if (!element) return;
+        event.preventDefault();
+        event.stopPropagation();
+        state.selectedElementId = elementId;
+        const startX = event.clientX;
+        const startY = event.clientY;
+        const startLeft = element.leftMm;
+        const startTop = element.topMm;
+        const pageWidth = state.editorTemplate.pageWidthMm || 120;
+        const pageHeight = state.editorTemplate.pageHeightMm || 80;
+        const onMove = (moveEvent) => {
+            const nextLeft = startLeft + (moveEvent.clientX - startX) / state.editorScale;
+            const nextTop = startTop + (moveEvent.clientY - startY) / state.editorScale;
+            element.leftMm = roundMm(clamp(nextLeft, 0, pageWidth - element.widthMm));
+            element.topMm = roundMm(clamp(nextTop, 0, pageHeight - element.heightMm));
+            renderTemplateEditor(state.editorTemplate);
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    function updateSelectedElement(field, value) {
+        const element = selectedEditorElement();
+        if (!element) return;
+        if (['leftMm', 'topMm', 'widthMm', 'heightMm'].indexOf(field) >= 0) {
+            element[field] = roundMm(numberOr(value, element[field]));
+        } else if (field === 'fontSize' || field === 'sortOrder') {
+            element[field] = Math.max(1, parseInt(value, 10) || element[field] || 1);
+        } else if (field === 'bold') {
+            element.bold = Boolean(value);
+        } else {
+            element[field] = value;
+        }
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    function selectEditorElement(elementId) {
+        state.selectedElementId = elementId;
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    function selectedEditorElement() {
+        return state.editorElements.find((item) => item.id === state.selectedElementId);
+    }
+
+    function deleteSelectedElement() {
+        if (!state.selectedElementId) return;
+        state.editorElements = state.editorElements.filter((item) => item.id !== state.selectedElementId);
+        state.selectedElementId = state.editorElements.length ? state.editorElements[0].id : null;
+        renderTemplateEditor(state.editorTemplate);
+    }
+
+    async function saveEditorElements() {
+        if (!state.editorTemplate || state.editorTemplate.engine !== 'CONFIG_LAYOUT') {
+            setStatus('rightStatus', '请选择可编辑的 CONFIG_LAYOUT 模板', 'error');
+            return;
+        }
+        try {
+            const code = state.editorTemplate.code;
+            const elements = state.editorElements
+                .slice()
+                .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0))
+                .map((element, index) => Object.assign({}, element, {sortOrder: index + 1}));
+            const data = await api('/api/label-templates/' + encodeURIComponent(code) + '/elements', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({elements: elements})
+            });
+            await loadTemplates();
+            selectTemplate(data.code);
+            setStatus('rightStatus', `元素已保存 v${data.version}`, 'ok');
+        } catch (error) {
+            setStatus('rightStatus', error.message, 'error');
+        }
+    }
+
+    async function saveElements() {
+        return saveEditorElements();
+    }
+
+    function newElementId() {
+        return 'ui-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
+    }
+
+    function numberOr(value, fallback) {
+        const number = Number(value);
+        return isFinite(number) ? number : fallback;
+    }
+
+    function roundMm(value) {
+        return Math.round(value * 10) / 10;
+    }
+
+    function clamp(value, min, max) {
+        return Math.max(min, Math.min(max < min ? min : max, value));
+    }
+
+    async function loadTemplates() {
+        const data = await api('/api/label-templates');
+        state.templates = data.items;
+        renderTemplateList(state.templates);
+        $('bindBox').innerHTML = state.templates.filter((item) => item.labelType === 'BOX').map((item) => `<option value="${item.code}">${item.name}</option>`).join('');
+        $('bindBag').innerHTML = state.templates.filter((item) => item.labelType === 'BAG').map((item) => `<option value="${item.code}">${item.name}</option>`).join('');
+        renderFieldPalette();
+        syncTemplateFromBinding();
+        const currentCode = state.editorTemplate ? state.editorTemplate.code : null;
+        const preferred = [currentCode, $('templateCode').value]
+            .concat(state.templates.filter((item) => item.engine === 'CONFIG_LAYOUT').map((item) => item.code))
+            .concat(state.templates.map((item) => item.code))
+            .find((code) => code && state.templates.some((item) => item.code === code));
+        if (preferred) selectTemplate(preferred);
+        if (state.templates[0] && !preferred) $('templateBadge').textContent = state.templates[0].engine;
+    }
+
+    async function search() {
+        try {
+            const data = await api('/api/name-conversions/products?keyword=' + encodeURIComponent($('keyword').value));
+            renderProducts(data.items);
+            setStatus('leftStatus', `找到 ${data.items.length} 条`, 'ok');
+        } catch (error) {
+            setStatus('leftStatus', error.message, 'error');
+        }
+    }
+
+    async function loadBinding() {
+        if (!state.productConfigId) return;
+        const data = await api('/api/product-template-bindings/' + encodeURIComponent(state.productConfigId));
+        state.binding = data;
+        $('bindBox').value = data.boxTemplateCode;
+        $('bindBag').value = data.bagTemplateCode;
+        syncTemplateFromBinding();
+    }
+
+    async function saveBinding() {
+        if (!state.productConfigId) return;
+        try {
+            const data = await api('/api/product-template-bindings/' + encodeURIComponent(state.productConfigId), {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({boxTemplateCode: $('bindBox').value, bagTemplateCode: $('bindBag').value})
+            });
+            state.binding = data;
+            syncTemplateFromBinding();
+            await search();
+            setStatus('leftStatus', `绑定已保存 ${data.boxTemplateCode} / ${data.bagTemplateCode}`, 'ok');
+        } catch (error) {
+            setStatus('leftStatus', error.message, 'error');
+        }
+    }
+
+    async function detail() {
+        if (!state.productConfigId) return;
+        try {
+            const data = await api('/api/name-conversions/' + encodeURIComponent(state.productConfigId));
+            renderFieldSources(data.fieldSources);
+            setStatus('leftStatus', `字段来源 ${data.fieldSources.length} 项`, 'ok');
+        } catch (error) {
+            setStatus('leftStatus', error.message, 'error');
+        }
+    }
+
+    async function saveTemplate() {
+        const [w, h] = $('tplSize').value.split(',').map(Number);
+        try {
+            const data = await api('/api/label-templates', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code: $('tplCode').value, name: $('tplName').value, labelType: $('tplType').value, pageWidthMm: w, pageHeightMm: h})
+            });
+            $('templateCode').value = data.code;
+            await loadTemplates();
+            selectTemplate(data.code);
+            setStatus('rightStatus', `模板已保存 ${data.code}`, 'ok');
+        } catch (error) {
+            setStatus('rightStatus', error.message, 'error');
+        }
+    }
+
+    async function importLegacy() {
+        try {
+            const data = await api('/api/template-imports/from-legacy', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({labelType: $('tplType').value, legacyTemplateId: $('tplCode').value, legacyTemplateName: $('tplName').value})
+            });
+            $('tplCode').value = data.code;
+            await loadTemplates();
+            selectTemplate(data.code);
+            setStatus('rightStatus', `旧模板草稿 ${data.code}`, 'ok');
+        } catch (error) {
+            setStatus('rightStatus', error.message, 'error');
+        }
+    }
+
+    async function importImage() {
+        try {
+            const data = await api('/api/template-imports/from-image', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({labelType: $('tplType').value, sampleName: $('tplName').value + '.png'})
+            });
+            $('tplCode').value = data.code;
+            await loadTemplates();
+            selectTemplate(data.code);
+            setStatus('rightStatus', `样张草稿 ${data.code}`, 'ok');
+        } catch (error) {
+            setStatus('rightStatus', error.message, 'error');
+        }
+    }
+
+    async function preview() {
+        if (!state.productConfigId) return;
+        try {
+            const data = await api('/api/box-labels/preview', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload())
+            });
+            renderPreview(data.row);
+            setStatus('middleStatus', `${data.mode} / ${data.templateCode} v${data.templateVersion}`, 'ok');
+        } catch (error) {
+            setStatus('middleStatus', error.message, 'error');
+        }
+    }
+
+    async function render(format) {
+        if (!state.productConfigId) return;
+        try {
+            state.outputFormat = format;
+            const data = await api('/api/box-labels/render', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload(format))
+            });
+            state.outputUrl = data.previewUrl;
+            $('outputPane').innerHTML = format === 'PNG'
+                ? `<img alt="箱贴预览" src="${data.previewUrl}">`
+                : `<iframe title="箱贴PDF预览" src="${data.previewUrl}"></iframe>`;
+            setStatus('middleStatus', `${data.templateCode} / ${data.format} / ${data.sizeBytes} bytes`, 'ok');
+        } catch (error) {
+            setStatus('middleStatus', error.message, 'error');
+        }
+    }
+
+    async function diagnose() {
+        if (!state.productConfigId) return;
+        try {
+            const data = await api('/api/box-labels/diagnostics/' + encodeURIComponent(state.productConfigId));
+            $('diagnostics').innerHTML = [
+                ['模板', data.templateAvailable ? '可用' : '缺失'],
+                ['Logo', data.logoAvailable ? '可用' : '缺失'],
+                ['条码', data.barcodeValid ? '有效' : '异常'],
+                ['缺字段', data.missingRequiredFields.length ? data.missingRequiredFields.join(', ') : '无']
+            ].map(([key, value]) => `<div class="source-line"><strong>${key}</strong><span>${value}</span></div>`).join('');
+            setStatus('rightStatus', '诊断完成', 'ok');
+        } catch (error) {
+            setStatus('rightStatus', error.message, 'error');
+        }
+    }
+
+    async function printJob() {
+        if (!state.productConfigId) return;
+        try {
+            const body = payload(state.outputFormat);
+            body.printerName = $('printerName').value;
+            body.copies = Number($('copies').value || 1);
+            body.operator = $('operator').value;
+            const data = await api('/api/box-labels/print', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            });
+            state.outputUrl = data.output.previewUrl;
+            $('outputPane').innerHTML = `<iframe title="箱贴PDF预览" src="${data.output.previewUrl}"></iframe>`;
+            setStatus('middleStatus', `${data.status} / ${data.jobId}`, 'ok');
+            await loadJobs();
+        } catch (error) {
+            setStatus('middleStatus', error.message, 'error');
+        }
+    }
+
+    async function loadJobs() {
+        const data = await api('/api/box-labels/print-jobs');
+        $('printJobs').innerHTML = data.items.map((item) =>
+            `<div class="job-line">` +
+            `<strong>${escapeHtml(item.status)}</strong>` +
+            `<span>` +
+            `<span class="job-template">${escapeHtml(item.output && item.output.templateCode)}</span> / ` +
+            `${escapeHtml(item.productConfigId || '')} / ${escapeHtml(item.labelType || '')} / ` +
+            `${escapeHtml(item.operator || '')} / ${escapeHtml(item.printerName || '')} / ` +
+            `${escapeHtml(item.copies)} / ${escapeHtml(item.jobId)}` +
+            `</span></div>`
+        ).join('');
+    }
+
+    $('searchBtn').onclick = search;
+    $('detailBtn').onclick = detail;
+    $('diagBtn').onclick = diagnose;
+    $('saveBindingBtn').onclick = saveBinding;
+    $('labelType').onchange = syncTemplateFromBinding;
+    $('templateCode').onchange = () => selectTemplate($('templateCode').value);
+    $('saveTemplateBtn').onclick = saveTemplate;
+    $('saveElementsBtn').onclick = saveElements;
+    $('addTextElementBtn').onclick = () => addTemplateElement('STATIC_TEXT');
+    $('addBarcodeElementBtn').onclick = () => addTemplateElement('BARCODE');
+    $('addQrElementBtn').onclick = () => addTemplateElement('QRCODE');
+    $('addLogoElementBtn').onclick = () => addTemplateElement('LOGO');
+    $('addLineElementBtn').onclick = () => addTemplateElement('LINE');
+    $('addRectElementBtn').onclick = () => addTemplateElement('RECTANGLE');
+    $('deleteElementBtn').onclick = deleteSelectedElement;
+    $('legacyImportBtn').onclick = importLegacy;
+    $('imageImportBtn').onclick = importImage;
+    $('previewBtn').onclick = preview;
+    $('renderPdfBtn').onclick = () => render('PDF');
+    $('renderPngBtn').onclick = () => render('PNG');
+    $('printBtn').onclick = printJob;
+    $('jobsBtn').onclick = loadJobs;
+    $('browserPrintBtn').onclick = () => { if (state.outputUrl) window.open(state.outputUrl, '_blank'); };
+
+    loadTemplates().then(search).then(loadJobs);
+</script>
+</body>
+</html>

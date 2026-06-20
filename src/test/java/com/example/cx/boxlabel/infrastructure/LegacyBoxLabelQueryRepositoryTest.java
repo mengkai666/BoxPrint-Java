@@ -77,6 +77,25 @@ class LegacyBoxLabelQueryRepositoryTest {
         assertThat(row.getShelfLifeConvert()).isFalse();
     }
 
+    @Test
+    void fakeLegacyDataCoversPhaseTwoBusinessScenarios() {
+        ProductSearchCriteria criteria = new ProductSearchCriteria();
+        criteria.setKeyword("DEMO-BOX");
+
+        List<BoxLabelProductSummary> products = queryRepository.searchProducts(criteria);
+
+        assertThat(products)
+                .extracting(BoxLabelProductSummary::getProductConfigId)
+                .contains(
+                        "DEMO-BOX-NORMAL",
+                        "DEMO-BOX-CONSIGNOR",
+                        "DEMO-BOX-SUPERMARKET",
+                        "DEMO-BOX-125",
+                        "DEMO-BOX-LONGTEXT",
+                        "DEMO-BOX-MISSING"
+                );
+    }
+
     private int tableCount(String tableName) {
         return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + tableName, Integer.class);
     }

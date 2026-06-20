@@ -266,6 +266,28 @@ class TemplateStudioControllerTest {
     }
 
     @Test
+    void fakeProductsExposeLongTextAndMissingDataScenarios() throws Exception {
+        mockMvc.perform(get("/api/name-conversions/products").param("keyword", "DEMO-BOX"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()", greaterThan(5)))
+                .andExpect(jsonPath("$.items[*].productConfigId", hasItem("DEMO-BOX-LONGTEXT")))
+                .andExpect(jsonPath("$.items[*].productConfigId", hasItem("DEMO-BOX-MISSING")));
+
+        mockMvc.perform(post("/api/box-labels/preview")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"productConfigId\":\"DEMO-BOX-LONGTEXT\",\"productionDate\":\"2026-06-08\",\"shift\":\"A\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.row.ingredients", containsString("配料表")))
+                .andExpect(jsonPath("$.row.nutritionFacts", containsString("能量")))
+                .andExpect(jsonPath("$.row.instructions", containsString("食用")));
+
+        mockMvc.perform(get("/api/box-labels/diagnostics/DEMO-BOX-MISSING"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.missingRequiredFields.length()", greaterThan(0)))
+                .andExpect(jsonPath("$.missingRequiredFields", hasItem("productStandardNo")));
+    }
+
+    @Test
     void printJobsAreQueryableAfterBrowserPrint() throws Exception {
         mockMvc.perform(post("/api/box-labels/print")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -37,11 +37,11 @@ public class LocalLegacyBoxLabelQueryRepository implements BoxLabelQueryReposito
                         "LEFT JOIN Inventory I ON T.cInvCode_hc = I.cInvCode " +
                         "LEFT JOIN CD_BRAND_LOGO BL ON T.cCustomBrand = BL.BL_ID " +
                         "LEFT JOIN CD_PRINT_TEMPLATE XT ON T.cPackageReportConfig = XT.PT_ID " +
-                        "WHERE (? = '' OR T.cInvName_hc LIKE '%' || ? || '%' OR T.cInvCode_hc LIKE '%' || ? || '%') " +
+                        "WHERE (? = '' OR T.id LIKE '%' || ? || '%' OR T.cInvName_hc LIKE '%' || ? || '%' OR T.cInvCode_hc LIKE '%' || ? || '%') " +
                         "AND (? = '' OR BL.BL_NAME = ?) " +
                         "AND (? = '' OR 'box-standard' = ?) " +
                         "ORDER BY T.cInvName_hc",
-                new Object[]{keyword, keyword, keyword, brandName, brandName, templateCode, templateCode},
+                new Object[]{keyword, keyword, keyword, keyword, brandName, brandName, templateCode, templateCode},
                 productMapper()
         );
     }

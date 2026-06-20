@@ -34,9 +34,9 @@ public class JdbcBoxLabelQueryRepository implements BoxLabelQueryRepository {
                         "FROM UFDATA_001_2018.dbo.hsh_Name_Conversion T " +
                         "LEFT JOIN CD_BRAND_LOGO BL ON T.cCustomBrand = BL.BL_ID " +
                         "LEFT JOIN CD_PRINT_TEMPLATE XT ON T.cPackageReportConfig = XT.PT_ID " +
-                        "WHERE (? = '' OR T.cInvName_hc LIKE '%' + ? + '%' OR T.cInvCode_hc LIKE '%' + ? + '%') " +
+                        "WHERE (? = '' OR CAST(T.id AS varchar(60)) LIKE '%' + ? + '%' OR T.cInvName_hc LIKE '%' + ? + '%' OR T.cInvCode_hc LIKE '%' + ? + '%') " +
                         "ORDER BY T.cInvName_hc",
-                new Object[]{keyword, keyword, keyword},
+                new Object[]{keyword, keyword, keyword, keyword},
                 productMapper()
         );
     }

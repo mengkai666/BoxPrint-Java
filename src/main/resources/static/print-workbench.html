@@ -131,6 +131,13 @@
             color: var(--muted);
             font-size: 12px;
         }
+        .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+        .summary-card { border: 1px solid var(--line); border-radius: 4px; padding: 8px; background: #fbfcfd; }
+        .summary-card strong { display: block; font-size: 16px; margin-top: 2px; }
+        .field-source-groups { display: grid; gap: 8px; border: 0; }
+        .field-source-group { border: 1px solid var(--line); border-radius: 4px; background: #fff; overflow: hidden; }
+        .field-source-group summary { cursor: pointer; list-style: none; }
+        .field-source-group summary::-webkit-details-marker { display: none; }
         .source-item {
             display: grid;
             grid-template-columns: 110px 1fr 78px;
@@ -157,6 +164,7 @@
             object-fit: contain;
             background: #fff;
         }
+        .output-link { display: inline-flex; align-items: center; margin: 8px 10px; color: var(--accent-dark); font-weight: 650; text-decoration: none; }
         .status {
             min-height: 34px;
             display: flex;
@@ -235,6 +243,7 @@
                 <button id="renderPdfBtn">生成 PDF</button>
                 <button id="renderPngBtn">生成 PNG</button>
             </div>
+            <div id="diagnosticSummary" class="summary-grid"></div>
             <div id="previewGroups" class="preview-groups"></div>
             <h3>字段来源</h3>
             <div id="fieldSources" class="list"></div>
@@ -369,6 +378,25 @@
         node.textContent = message;
     }
 
+    function handleActionError(statusId, error) {
+        setStatus(statusId, error && error.message ? error.message : String(error), 'error');
+    }
+
+    async function runAction(statusId, action) {
+        try {
+            return await action();
+        } catch (error) {
+            handleActionError(statusId, error);
+            return null;
+        }
+    }
+
+    function requireSelectedProduct(statusId) {
+        if (state.selectedProduct) return true;
+        setStatus(statusId, '请先选择产品', 'error');
+        return false;
+    }
+
     function selectedTemplateCode() {
         if ($('labelType').value === 'BAG') return $('bindBag').value;
         return $('bindBox').value;
@@ -380,13 +408,19 @@
         $('bindBag').value = state.binding.bagTemplateCode || '';
     }
 
-    async function loadTemplates() {
-        const data = await api('/api/label-templates');
-        state.templates = data.items || [];
-        const options = ['<option value="">全部模板</option>'].concat(state.templates.map((item) =>
+    function renderTemplateFilterOptions() {
+        const labelType = $('labelType').value || 'BOX';
+        const candidates = state.templates.filter((item) => item.labelType === labelType);
+        const options = ['<option value="">全部模板</option>'].concat(candidates.map((item) =>
             `<option value="${escapeHtml(item.code)}">${escapeHtml(item.name)} / ${escapeHtml(item.code)}</option>`
         )).join('');
         $('templateFilter').innerHTML = options;
+    }
+
+    async function loadTemplates() {
+        const data = await api('/api/label-templates');
+        state.templates = data.items || [];
+        renderTemplateFilterOptions();
         $('bindBox').innerHTML = state.templates.filter((item) => item.labelType === 'BOX').map((item) =>
             `<option value="${escapeHtml(item.code)}">${escapeHtml(item.name)} / ${escapeHtml(item.code)}</option>`
         ).join('');
@@ -413,7 +447,7 @@
             </button>`
         ).join('');
         Array.prototype.forEach.call(document.querySelectorAll('.product'), (button) => {
-            button.onclick = () => selectProduct(button.getAttribute('data-id'));
+            button.onclick = () => runAction('middleStatus', () => selectProduct(button.getAttribute('data-id')));
         });
     }
 
@@ -422,6 +456,7 @@
         renderProducts();
         await loadBinding(productConfigId);
         await loadFieldSources(productConfigId);
+        await loadDiagnostics(productConfigId);
         setStatus('middleStatus', productConfigId, 'ok');
     }
 
@@ -431,7 +466,7 @@
     }
 
     async function saveBinding() {
-        if (!state.selectedProduct) return;
+        if (!requireSelectedProduct('rightStatus')) return;
         state.binding = await api('/api/product-template-bindings/' + encodeURIComponent(state.selectedProduct.productConfigId), {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
@@ -454,10 +489,33 @@
         renderFieldSources(detail.fieldSources || []);
     }
 
+    async function loadDiagnostics(productConfigId) {
+        const data = await api('/api/box-labels/diagnostics/' + encodeURIComponent(productConfigId));
+        renderDiagnostics(data);
+        return data;
+    }
+
+    function renderDiagnostics(data) {
+        const missingCount = data && data.missingRequiredFields ? data.missingRequiredFields.length : 0;
+        const warningCount = data && data.warnings ? data.warnings.length : 0;
+        $('diagnosticSummary').innerHTML = `
+            <div class="summary-card"><span class="muted">缺失字段</span><strong>${missingCount}</strong></div>
+            <div class="summary-card"><span class="muted">模板</span><strong>${data && data.templateAvailable ? '可用' : '缺失'}</strong></div>
+            <div class="summary-card"><span class="muted">警告</span><strong>${warningCount}</strong></div>
+        `;
+    }
+
+    function shouldExpandFieldGroup(category, items) {
+        if (category === '基础字段') return true;
+        return (items || []).some((item) => item.fieldStatus === 'MISSING' || item.fieldStatus === 'FALLBACK');
+    }
+
     function renderFieldSources(items) {
         const groups = groupFieldSources(items);
+        $('fieldSources').className = 'field-source-groups';
         $('fieldSources').innerHTML = Object.keys(groups).map((category) => {
-            const rows = groups[category].map((item) => {
+            const groupItems = groups[category];
+            const rows = groupItems.map((item) => {
                 const statusClass = item.fieldStatus === 'MISSING' ? 'status-missing' : (item.fieldStatus === 'FALLBACK' ? 'status-fallback' : 'status-ok');
                 return `<div class="source-item">
                     <span class="source-display-name">${escapeHtml(item.displayName)}</span>
@@ -465,7 +523,10 @@
                     <span class="source-status ${statusClass}">${escapeHtml(item.fieldStatus)}</span>
                 </div>`;
             }).join('');
-            return `<div class="source-category"><span>${escapeHtml(category)}</span><span class="source-count">${groups[category].length} 项</span></div>${rows}`;
+            const summary = `<summary class="source-category"><span>${escapeHtml(category)}</span><span class="source-count">${groupItems.length} 项</span></summary>`;
+            return shouldExpandFieldGroup(category, groupItems)
+                ? `<details open class="field-source-group">${summary}${rows}</details>`
+                : `<details class="field-source-group">${summary}${rows}</details>`;
         }).join('');
     }
 
@@ -479,7 +540,7 @@
     }
 
     async function preview() {
-        if (!state.selectedProduct) return;
+        if (!requireSelectedProduct('middleStatus')) return;
         const data = await api('/api/box-labels/preview', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -497,7 +558,7 @@
     }
 
     async function render(format) {
-        if (!state.selectedProduct) return;
+        if (!requireSelectedProduct('rightStatus')) return;
         const data = await api('/api/box-labels/render', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -511,14 +572,16 @@
             })
         });
         state.lastOutput = data;
-        $('outputPane').innerHTML = format === 'PDF'
-            ? `<iframe src="${escapeHtml(data.previewUrl)}"></iframe>`
-            : `<img alt="箱贴预览" src="${escapeHtml(data.previewUrl)}">`;
+        $('outputPane').innerHTML = `<a class="output-link" href="${escapeHtml(data.previewUrl)}" target="_blank">打开 ${escapeHtml(data.format)} 输出</a>` + (
+            format === 'PDF'
+                ? `<iframe src="${escapeHtml(data.previewUrl)}"></iframe>`
+                : `<img alt="箱贴预览" src="${escapeHtml(data.previewUrl)}">`
+        );
         setStatus('rightStatus', `${data.templateCode} / ${data.format} / ${data.sizeBytes} bytes`, 'ok');
     }
 
     async function printJob() {
-        if (!state.selectedProduct) return;
+        if (!requireSelectedProduct('rightStatus')) return;
         const data = await api('/api/box-labels/print', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -551,20 +614,24 @@
     }
 
     async function diagnose() {
-        if (!state.selectedProduct) return;
-        const data = await api('/api/box-labels/diagnostics/' + encodeURIComponent(state.selectedProduct.productConfigId));
+        if (!requireSelectedProduct('leftStatus')) return;
+        const data = await loadDiagnostics(state.selectedProduct.productConfigId);
         setStatus('leftStatus', `缺失字段 ${data.missingRequiredFields.length} 个，模板 ${data.templateAvailable ? '可用' : '缺失'}`, data.missingRequiredFields.length ? 'error' : 'ok');
     }
 
-    $('searchBtn').onclick = searchProducts;
-    $('diagnoseBtn').onclick = diagnose;
-    $('previewBtn').onclick = preview;
-    $('renderPdfBtn').onclick = () => render('PDF');
-    $('renderPngBtn').onclick = () => render('PNG');
-    $('printBtn').onclick = printJob;
-    $('browserPrintBtn').onclick = () => state.lastOutput && window.open(state.lastOutput.previewUrl, '_blank');
-    $('saveBindingBtn').onclick = saveBinding;
-    $('labelType').onchange = syncTemplateFromBinding;
+    $('searchBtn').onclick = () => runAction('leftStatus', searchProducts);
+    $('diagnoseBtn').onclick = () => runAction('leftStatus', diagnose);
+    $('previewBtn').onclick = () => runAction('middleStatus', preview);
+    $('renderPdfBtn').onclick = () => runAction('rightStatus', () => render('PDF'));
+    $('renderPngBtn').onclick = () => runAction('rightStatus', () => render('PNG'));
+    $('printBtn').onclick = () => runAction('rightStatus', printJob);
+    $('browserPrintBtn').onclick = () => state.lastOutput ? window.open(state.lastOutput.previewUrl, '_blank') : setStatus('rightStatus', '请先生成 PDF 或 PNG', 'error');
+    $('saveBindingBtn').onclick = () => runAction('rightStatus', saveBinding);
+    $('labelType').onchange = () => runAction('leftStatus', async () => {
+        renderTemplateFilterOptions();
+        syncTemplateFromBinding();
+        await searchProducts();
+    });
 
     loadTemplates().then(searchProducts).then(loadJobs).catch((error) => setStatus('leftStatus', error.message, 'error'));
 </script>

@@ -6,6 +6,7 @@ import com.example.cx.boxlabel.domain.BoxLabelRenderRequest;
 import com.example.cx.boxlabel.domain.BoxLabelRenderResponse;
 import com.example.cx.boxlabel.domain.ImageTemplateImportRequest;
 import com.example.cx.boxlabel.domain.LabelTemplate;
+import com.example.cx.boxlabel.domain.LabelTemplateCopyRequest;
 import com.example.cx.boxlabel.domain.LabelTemplateElementsUpdateRequest;
 import com.example.cx.boxlabel.domain.LabelTemplateSaveRequest;
 import com.example.cx.boxlabel.domain.LegacyTemplateImportRequest;
@@ -49,6 +50,12 @@ public class TemplateStudioController {
     public LabelTemplate updateElements(@PathVariable String templateCode,
                                         @RequestBody LabelTemplateElementsUpdateRequest request) {
         return templateService.updateElements(templateCode, request);
+    }
+
+    @PostMapping("/api/label-templates/{templateCode}/copy")
+    public LabelTemplate copyTemplate(@PathVariable String templateCode,
+                                      @RequestBody LabelTemplateCopyRequest request) {
+        return templateService.copyTemplate(templateCode, request);
     }
 
     @PostMapping("/api/label-templates/{templateCode}/preview")

@@ -5,6 +5,7 @@ import com.example.cx.boxlabel.domain.BoxLabelDiagnostics;
 import com.example.cx.boxlabel.domain.BoxLabelPrintRow;
 import com.example.cx.boxlabel.domain.ImageTemplateImportRequest;
 import com.example.cx.boxlabel.domain.LabelTemplate;
+import com.example.cx.boxlabel.domain.LabelTemplateCopyRequest;
 import com.example.cx.boxlabel.domain.LabelTemplateElement;
 import com.example.cx.boxlabel.domain.LabelTemplateElementsUpdateRequest;
 import com.example.cx.boxlabel.domain.LabelTemplateSaveRequest;
@@ -97,6 +98,29 @@ public class BoxLabelTemplateService {
         templateRepository.save(template);
         templateRepository.replaceElements(template.getCode(), elements);
         return templateRepository.findByCode(template.getCode()).copy();
+    }
+
+    public synchronized LabelTemplate copyTemplate(String sourceCode, LabelTemplateCopyRequest request) {
+        LabelTemplate source = requireTemplate(sourceCode);
+        String code = requireCode(request.getCode());
+        if (templateRepository.findByCode(code) != null) {
+            throw new IllegalArgumentException("Template already exists: " + code);
+        }
+        LabelTemplate copy = LabelTemplate.configLayout(
+                code,
+                trimToDefault(request.getName(), source.getName() + " Copy"),
+                normalizeRequiredLabelType(source.getLabelType()),
+                positiveOrDefault(source.getPageWidthMm(), 120),
+                positiveOrDefault(source.getPageHeightMm(), 80)
+        );
+        copy.setStatus("DRAFT");
+        copy.setImportSource("COPY");
+        copy.setEnabled(true);
+        List<LabelTemplateElement> elements = copyElementsForTemplate(source.getElements());
+        copy.setElements(elements);
+        templateRepository.save(copy);
+        templateRepository.replaceElements(copy.getCode(), elements);
+        return templateRepository.findByCode(copy.getCode()).copy();
     }
 
     public synchronized LabelTemplate importFromLegacy(LegacyTemplateImportRequest request) {
@@ -239,6 +263,18 @@ public class BoxLabelTemplateService {
         copy.setFontSize(element.getFontSize() <= 0 ? 10 : element.getFontSize());
         copy.setBold(element.isBold());
         return copy;
+    }
+
+    private List<LabelTemplateElement> copyElementsForTemplate(List<LabelTemplateElement> source) {
+        List<LabelTemplateElement> copies = new ArrayList<LabelTemplateElement>();
+        int index = 1;
+        for (LabelTemplateElement element : source == null ? Collections.<LabelTemplateElement>emptyList() : source) {
+            LabelTemplateElement copy = copyElement(element);
+            copy.setId(UUID.randomUUID().toString());
+            copy.setSortOrder(index++);
+            copies.add(copy);
+        }
+        return copies;
     }
 
     private List<LabelTemplateElement> normalizeElements(List<LabelTemplateElement> source) {

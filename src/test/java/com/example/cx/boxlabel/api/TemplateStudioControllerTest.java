@@ -288,6 +288,21 @@ class TemplateStudioControllerTest {
     }
 
     @Test
+    void templateCanBeCopiedWithElements() throws Exception {
+        mockMvc.perform(post("/api/label-templates/box-config-standard/copy")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"box-config-copy\",\"name\":\"Box Config Copy\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("box-config-copy"))
+                .andExpect(jsonPath("$.name").value("Box Config Copy"))
+                .andExpect(jsonPath("$.engine").value("CONFIG_LAYOUT"))
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.importSource").value("COPY"))
+                .andExpect(jsonPath("$.elements.length()", greaterThan(8)))
+                .andExpect(jsonPath("$.elements[*].fieldName", hasItem("boxLabelName")));
+    }
+
+    @Test
     void printJobsAreQueryableAfterBrowserPrint() throws Exception {
         mockMvc.perform(post("/api/box-labels/print")
                         .contentType(MediaType.APPLICATION_JSON)

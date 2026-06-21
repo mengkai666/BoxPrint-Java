@@ -105,9 +105,15 @@
         .muted { color: var(--muted); font-size: 12px; }
         .field-contract-groups { display: grid; gap: 8px; }
         .field-group { border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #fff; }
+        .field-group:not([open]) { background: #fbfcfd; }
         .field-group summary { cursor: pointer; padding: 8px 10px; background: #f7f9fa; font-weight: 650; }
         .field-group .field-item strong { font-weight: 650; }
         .field-group .field-item .muted { color: #7a8490; }
+        .editor-tools { display: grid; gap: 8px; }
+        .support-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(220px, .8fr); gap: 10px; margin-top: 12px; }
+        .support-panel h3 { margin: 0 0 8px; font-size: 14px; }
+        .support-panel .list { max-height: 260px; overflow: auto; }
+        .empty-state { padding: 12px; color: var(--muted); font-size: 12px; }
         .canvas-shell {
             overflow: auto;
             border: 1px solid var(--line);
@@ -161,6 +167,7 @@
         .status.error { color: var(--danger); }
         @media (max-width: 1180px) {
             main { grid-template-columns: 1fr; }
+            .support-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -227,38 +234,44 @@
     <section>
         <div class="section-title">配置版式编辑</div>
         <div class="body">
-            <div class="actions">
-                <button id="addTextBtn">单行文本</button>
-                <button id="addMultilineBtn">多行文本</button>
-                <button id="addFieldBtn">字段文本</button>
-                <button id="addBarcodeBtn">条码</button>
-                <button id="addQrBtn">二维码</button>
-                <button id="addLogoBtn">Logo</button>
-                <button id="deleteElementBtn">删除</button>
-            </div>
-            <div class="actions">
-                <button id="duplicateElementBtn">复制元素</button>
-                <button id="alignLeftBtn">左对齐</button>
-                <button id="alignRightBtn">右对齐</button>
-                <button id="alignTopBtn">上对齐</button>
-                <button id="alignBottomBtn">下对齐</button>
-                <button id="layerUpBtn">上移一层</button>
-                <button id="layerDownBtn">下移一层</button>
-                <button id="layerTopBtn">置顶</button>
-                <button id="layerBottomBtn">置底</button>
-            </div>
-            <div class="row">
-                <div>
-                    <h3>字段面板</h3>
-                    <div id="fieldPalette" class="list"></div>
+            <div class="editor-tools">
+                <div class="actions">
+                    <button id="addTextBtn">单行文本</button>
+                    <button id="addMultilineBtn">多行文本</button>
+                    <button id="addFieldBtn">字段文本</button>
+                    <button id="addBarcodeBtn">条码</button>
+                    <button id="addQrBtn">二维码</button>
+                    <button id="addLogoBtn">Logo</button>
+                    <button id="deleteElementBtn">删除</button>
                 </div>
-                <div>
-                    <h3>图层</h3>
-                    <div id="layerList" class="list"></div>
+                <div class="actions">
+                    <button id="duplicateElementBtn">复制元素</button>
+                    <button id="alignLeftBtn">左对齐</button>
+                    <button id="alignRightBtn">右对齐</button>
+                    <button id="alignTopBtn">上对齐</button>
+                    <button id="alignBottomBtn">下对齐</button>
+                    <button id="layerUpBtn">上移一层</button>
+                    <button id="layerDownBtn">下移一层</button>
+                    <button id="layerTopBtn">置顶</button>
+                    <button id="layerBottomBtn">置底</button>
                 </div>
             </div>
             <div class="canvas-shell">
                 <div class="template-canvas" id="templateCanvas"></div>
+            </div>
+            <div class="support-grid" id="fieldPaletteSupport">
+                <div class="support-panel">
+                    <h3>字段面板</h3>
+                    <div class="field">
+                        <label for="fieldSearch">搜索字段</label>
+                        <input id="fieldSearch" placeholder="字段名 / 显示名 / 分组">
+                    </div>
+                    <div id="fieldPalette" class="list"></div>
+                </div>
+                <div class="support-panel">
+                    <h3>图层</h3>
+                    <div id="layerList" class="list"></div>
+                </div>
             </div>
             <div class="actions">
                 <button id="saveElementsBtn" class="primary">保存元素</button>
@@ -304,6 +317,7 @@
         editorElements: [],
         selectedElementIds: []
     };
+    const commonFieldNames = ['boxLabelName', 'inventoryName', 'packageSpec', 'productBarcode', 'qrCode', 'productionDate'];
 
     async function api(url, options) {
         const response = await fetch(url, options);
@@ -406,29 +420,62 @@
     }
 
     function fieldContractGroups() {
-        return state.fieldContract.reduce((groups, item) => {
-            const category = item.category || '未分组';
-            if (!groups[category]) groups[category] = [];
-            groups[category].push(item);
-            return groups;
+        const commonNames = commonFieldNames.reduce((names, fieldName) => {
+            names[fieldName] = true;
+            return names;
         }, {});
+        const groups = {};
+        const commonItems = state.fieldContract.filter((item) => commonNames[item.fieldName]);
+        if (commonItems.length) {
+            groups['常用字段'] = commonItems;
+        }
+        return state.fieldContract.reduce((allGroups, item) => {
+            if (commonNames[item.fieldName]) return allGroups;
+            const category = item.category || '未分组';
+            if (!allGroups[category]) allGroups[category] = [];
+            allGroups[category].push(item);
+            return allGroups;
+        }, groups);
+    }
+
+    function fieldSearchTerm() {
+        return ($('fieldSearch') && $('fieldSearch').value || '').trim().toLowerCase();
+    }
+
+    function fieldMatchesSearch(item, term) {
+        if (!term) return true;
+        return [item.fieldName, item.displayName, item.category].some((value) =>
+            String(value || '').toLowerCase().indexOf(term) >= 0
+        );
+    }
+
+    function shouldOpenFieldGroup(category, items, term) {
+        if (category === '常用字段') return true;
+        return !!term && (items || []).some((item) => fieldMatchesSearch(item, term));
+    }
+
+    function renderFieldSearch() {
+        renderFieldPalette();
     }
 
     function renderFieldPalette() {
         const groups = fieldContractGroups();
+        const term = fieldSearchTerm();
         $('fieldPalette').className = 'field-contract-groups';
         $('fieldPalette').innerHTML = Object.keys(groups).map((category) => {
-            const rows = groups[category].map((item) =>
+            const visibleItems = groups[category].filter((item) => fieldMatchesSearch(item, term));
+            if (!visibleItems.length) return '';
+            const rows = visibleItems.map((item) =>
                 `<button class="field-item" data-field="${escapeHtml(item.fieldName)}">
                     <strong>${escapeHtml(item.displayName || item.fieldName)}</strong>
                     <span class="muted">${escapeHtml(item.fieldName)} / ${escapeHtml(item.category)}</span>
                 </button>`
             ).join('');
-            return `<details class="field-group" open>
-                <summary>${escapeHtml(category)} / ${groups[category].length} 项</summary>
+            return `<details class="field-group" ${shouldOpenFieldGroup(category, visibleItems, term) ? 'open' : ''}>
+                <summary>${escapeHtml(category)} / ${visibleItems.length} 项</summary>
                 ${rows}
             </details>`;
-        }).join('');
+        }).join('') || '<div class="empty-state">未找到字段</div>';
         Array.prototype.forEach.call(document.querySelectorAll('.field-item'), (button) => {
             button.onclick = () => runAction('middleStatus', () => addTemplateElement('FIELD_TEXT', button.getAttribute('data-field')));
         });
@@ -839,6 +886,7 @@
     $('layerTopBtn').onclick = () => runAction('middleStatus', () => moveSelectedLayer('top'));
     $('layerBottomBtn').onclick = () => runAction('middleStatus', () => moveSelectedLayer('bottom'));
     $('templatePreviewBtn').onclick = () => runAction('rightStatus', previewTemplateWithSample);
+    $('fieldSearch').oninput = renderFieldSearch;
 
     Promise.all([loadFieldContract(), loadTemplates(), loadSampleProducts()])
         .catch((error) => setStatus('leftStatus', error.message, 'error'));

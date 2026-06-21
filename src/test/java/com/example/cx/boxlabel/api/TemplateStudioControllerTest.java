@@ -83,6 +83,13 @@ class TemplateStudioControllerTest {
                 .contains("function makeCopyCode")
                 .contains("多行文本")
                 .contains("请选择 CONFIG_LAYOUT 模板")
+                .contains("fieldSearch")
+                .contains("fieldPaletteSupport")
+                .contains("support-grid")
+                .contains("commonFieldNames")
+                .contains("function renderFieldSearch")
+                .contains("function shouldOpenFieldGroup")
+                .contains("常用字段")
                 .contains("Array.isArray(data)")
                 .contains("copyTemplateBtn")
                 .doesNotContain("提交打印");

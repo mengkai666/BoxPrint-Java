@@ -7,6 +7,8 @@
 ## 当前范围
 
 - 操作型 Web 工作台：http://localhost:8088/
+- 打印工作台：http://localhost:8088/print-workbench
+- 模板维护中心：http://localhost:8088/template-studio
 - 默认使用 H2 fake 数据，保留和 SQL Server/U8 真实表一致的读取边界。
 - Java 新表使用 `LP_*` 前缀，保存模板、模板元素、产品模板绑定、打印日志和导入日志。
 - 旧表如 `hsh_Name_Conversion`、`Inventory`、`CD_PRINT_TEMPLATE`、`CD_BRAND_LOGO` 等只读保留。
@@ -24,6 +26,12 @@ mvn spring-boot:run
 ```
 
 默认端口是 `8088`。
+
+## Web Workspaces
+
+- `http://localhost:8088/`：转到打印工作台。
+- `http://localhost:8088/print-workbench`：箱贴/袋贴打印执行工作区，包含产品查询、数据预览、模板绑定、PDF/PNG 生成、提交打印和打印日志。
+- `http://localhost:8088/template-studio`：模板维护中心，包含模板列表、字段面板、元素画布、属性编辑、复制模板、元素复制/对齐/层级调整、旧模板导入、样张识别草稿和样例产品预览。
 
 ## 真实数据库切换
 

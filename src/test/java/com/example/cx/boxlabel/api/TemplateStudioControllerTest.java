@@ -81,7 +81,7 @@ class TemplateStudioControllerTest {
 
     @Test
     void nameConversionEndpointsExposeProductDetailAndJavaTemplateBinding() throws Exception {
-        mockMvc.perform(get("/api/name-conversions/products").param("keyword", "DEMO"))
+        mockMvc.perform(get("/api/name-conversions/products").param("keyword", "DEMO001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()", greaterThan(0)))
                 .andExpect(jsonPath("$.items[0].productConfigId").value("DEMO-BOX-001"));
@@ -229,21 +229,21 @@ class TemplateStudioControllerTest {
                         .content("{\"boxTemplateCode\":\"box-custom\",\"bagTemplateCode\":\"bag-standard\"}"))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/name-conversions/products").param("keyword", "DEMO"))
+        mockMvc.perform(get("/api/name-conversions/products").param("keyword", "DEMO001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].productConfigId").value("DEMO-BOX-001"))
                 .andExpect(jsonPath("$.items[0].boxTemplateCode").value("box-custom"))
                 .andExpect(jsonPath("$.items[0].boxTemplateName").value("Custom Box"));
 
         mockMvc.perform(get("/api/name-conversions/products")
-                        .param("keyword", "DEMO")
+                        .param("keyword", "DEMO001")
                         .param("templateCode", "box-custom"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].productConfigId").value("DEMO-BOX-001"));
 
         mockMvc.perform(get("/api/name-conversions/products")
-                        .param("keyword", "DEMO")
+                        .param("keyword", "DEMO001")
                         .param("templateCode", "box-standard"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(0));

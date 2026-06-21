@@ -50,6 +50,19 @@ Fake H2 data is intentionally shaped like the future SQL Server access path:
 - Product-template binding must be the source of truth when preview/render/print requests omit an explicit template code.
 - Print jobs must keep the product config id, label type, operator, printer, copies, template code, template version, output file id, and preview URL so historical records remain readable after template changes.
 
+## Phase 2.1 Fake Data
+
+The local H2 legacy stand-ins include richer product scenarios so development can continue before QA SQL Server access is available:
+
+- `DEMO-BOX-NORMAL`: complete normal box-label product.
+- `DEMO-BOX-CONSIGNOR`: product with consignor name, phone, address, and type from `CD_BRAND_LOGO`.
+- `DEMO-BOX-SUPERMARKET`: supermarket/customer-specific sample with customer barcode fallback behavior.
+- `DEMO-BOX-125`: package size includes `125` for variant template acceptance.
+- `DEMO-BOX-LONGTEXT`: long ingredients, nutrition facts, instructions, allergen, and reminder text for wrapping/rendering tests.
+- `DEMO-BOX-MISSING`: intentionally missing product-standard relationship so diagnostics report missing required fields.
+
+These rows remain fake legacy data. They do not change the ownership rule: template definitions, template elements, product-template bindings, print jobs, and import logs are still Java-owned `LP_*` data.
+
 ## Migration Boundary
 
 The first production conversion should follow this rule:

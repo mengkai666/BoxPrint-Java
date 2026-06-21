@@ -103,6 +103,11 @@
         .template-item:last-child, .field-item:last-child, .layer-item:last-child { border-bottom: 0; }
         .template-item.active, .layer-item.active { background: #e8f5f3; border-left: 3px solid var(--accent); }
         .muted { color: var(--muted); font-size: 12px; }
+        .field-contract-groups { display: grid; gap: 8px; }
+        .field-group { border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #fff; }
+        .field-group summary { cursor: pointer; padding: 8px 10px; background: #f7f9fa; font-weight: 650; }
+        .field-group .field-item strong { font-weight: 650; }
+        .field-group .field-item .muted { color: #7a8490; }
         .canvas-shell {
             overflow: auto;
             border: 1px solid var(--line);
@@ -320,6 +325,31 @@
         node.textContent = message;
     }
 
+    function handleActionError(statusId, error) {
+        setStatus(statusId, error && error.message ? error.message : String(error), 'error');
+    }
+
+    async function runAction(statusId, action) {
+        try {
+            return await action();
+        } catch (error) {
+            handleActionError(statusId, error);
+            return null;
+        }
+    }
+
+    function requireEditorTemplate(statusId) {
+        if (!state.editorTemplate) {
+            setStatus(statusId, '请选择模板', 'error');
+            return false;
+        }
+        if (state.editorTemplate.engine !== 'CONFIG_LAYOUT') {
+            setStatus(statusId, '请选择 CONFIG_LAYOUT 模板', 'error');
+            return false;
+        }
+        return true;
+    }
+
     function roundMm(value) {
         return Math.round(Number(value || 0) * 10) / 10;
     }
@@ -345,10 +375,22 @@
         params.set('labelType', $('labelType').value);
         const data = await api('/api/label-templates?' + params.toString());
         state.templates = (data.items || []).filter((item) => !$('templateStatus').value || item.status === $('templateStatus').value);
-        renderTemplates();
-        if (!state.editorTemplate && state.templates.length) {
-            loadTemplateIntoEditor(state.templates[0].code);
+        const currentStillVisible = state.editorTemplate && state.templates.some((item) => item.code === state.editorTemplate.code);
+        if (!currentStillVisible) {
+            state.editorTemplate = null;
         }
+        renderTemplates();
+        const preferredCode = preferredEditableTemplateCode();
+        if (!state.editorTemplate && preferredCode) {
+            loadTemplateIntoEditor(preferredCode);
+        } else if (!preferredCode) {
+            loadTemplateIntoEditor(null);
+        }
+    }
+
+    function preferredEditableTemplateCode() {
+        const editable = state.templates.find((item) => item.engine === 'CONFIG_LAYOUT');
+        return editable ? editable.code : (state.templates[0] ? state.templates[0].code : null);
     }
 
     function renderTemplates() {
@@ -359,19 +401,36 @@
             </button>`
         ).join('');
         Array.prototype.forEach.call(document.querySelectorAll('.template-item'), (button) => {
-            button.onclick = () => loadTemplateIntoEditor(button.getAttribute('data-code'));
+            button.onclick = () => runAction('middleStatus', () => loadTemplateIntoEditor(button.getAttribute('data-code')));
         });
     }
 
+    function fieldContractGroups() {
+        return state.fieldContract.reduce((groups, item) => {
+            const category = item.category || '未分组';
+            if (!groups[category]) groups[category] = [];
+            groups[category].push(item);
+            return groups;
+        }, {});
+    }
+
     function renderFieldPalette() {
-        $('fieldPalette').innerHTML = state.fieldContract.map((item) =>
-            `<button class="field-item" data-field="${escapeHtml(item.fieldName)}">
-                <strong>${escapeHtml(item.displayName || item.fieldName)}</strong>
-                <span class="muted">${escapeHtml(item.fieldName)} / ${escapeHtml(item.category)}</span>
-            </button>`
-        ).join('');
+        const groups = fieldContractGroups();
+        $('fieldPalette').className = 'field-contract-groups';
+        $('fieldPalette').innerHTML = Object.keys(groups).map((category) => {
+            const rows = groups[category].map((item) =>
+                `<button class="field-item" data-field="${escapeHtml(item.fieldName)}">
+                    <strong>${escapeHtml(item.displayName || item.fieldName)}</strong>
+                    <span class="muted">${escapeHtml(item.fieldName)} / ${escapeHtml(item.category)}</span>
+                </button>`
+            ).join('');
+            return `<details class="field-group" open>
+                <summary>${escapeHtml(category)} / ${groups[category].length} 项</summary>
+                ${rows}
+            </details>`;
+        }).join('');
         Array.prototype.forEach.call(document.querySelectorAll('.field-item'), (button) => {
-            button.onclick = () => addTemplateElement('FIELD_TEXT', button.getAttribute('data-field'));
+            button.onclick = () => runAction('middleStatus', () => addTemplateElement('FIELD_TEXT', button.getAttribute('data-field')));
         });
     }
 
@@ -524,8 +583,8 @@
         )).join('');
     }
 
-    function addTemplateElement(type, fieldName) {
-        if (!state.editorTemplate) return;
+    function addTemplateElement(type, fieldName, overrides) {
+        if (!requireEditorTemplate('middleStatus')) return;
         const element = {
             id: newElementId(),
             type: type,
@@ -547,6 +606,7 @@
             element.widthMm = 28;
             element.heightMm = 14;
         }
+        Object.assign(element, overrides || {});
         state.editorElements.push(element);
         state.selectedElementIds = [element.id];
         renderTemplateEditor(state.editorTemplate);
@@ -580,16 +640,24 @@
         renderTemplateEditor(state.editorTemplate);
     }
 
+    function requireSelectedElements(statusId, minCount, message) {
+        if (state.selectedElementIds.length >= minCount) return true;
+        setStatus(statusId, message, 'error');
+        return false;
+    }
+
     function deleteSelectedElement() {
-        if (!state.selectedElementIds.length) return;
+        if (!requireEditorTemplate('middleStatus')) return;
+        if (!requireSelectedElements('middleStatus', 1, '请选择元素')) return;
         state.editorElements = state.editorElements.filter((item) => state.selectedElementIds.indexOf(item.id) < 0);
         state.selectedElementIds = [];
         renderTemplateEditor(state.editorTemplate);
     }
 
     function duplicateSelectedElements() {
+        if (!requireEditorTemplate('middleStatus')) return;
+        if (!requireSelectedElements('middleStatus', 1, '请选择元素')) return;
         const selected = selectedEditorElements();
-        if (!selected.length) return;
         const copies = selected.map((element, index) => Object.assign({}, element, {
             id: newElementId(),
             sortOrder: state.editorElements.length + index + 1,
@@ -602,8 +670,9 @@
     }
 
     function alignSelectedElements(mode) {
+        if (!requireEditorTemplate('middleStatus')) return;
+        if (!requireSelectedElements('middleStatus', 2, '请选择至少两个元素')) return;
         const selected = selectedEditorElements();
-        if (selected.length < 2) return;
         const anchor = selected[0];
         selected.slice(1).forEach((element) => {
             if (mode === 'left') element.leftMm = anchor.leftMm;
@@ -615,8 +684,9 @@
     }
 
     function moveSelectedLayer(mode) {
+        if (!requireEditorTemplate('middleStatus')) return;
+        if (!requireSelectedElements('middleStatus', 1, '请选择元素')) return;
         const selectedIds = state.selectedElementIds.slice();
-        if (!selectedIds.length) return;
         const sorted = state.editorElements.slice().sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
         selectedIds.forEach((id) => {
             const index = sorted.findIndex((item) => item.id === id);
@@ -662,7 +732,7 @@
     }
 
     async function saveElements() {
-        if (!state.editorTemplate) return;
+        if (!requireEditorTemplate('middleStatus')) return;
         const data = await api('/api/label-templates/' + encodeURIComponent(state.editorTemplate.code) + '/elements', {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
@@ -674,9 +744,13 @@
         renderTemplateEditor(data);
     }
 
+    function makeCopyCode(code) {
+        return (code || 'template') + '-copy-' + Date.now().toString().slice(-6);
+    }
+
     async function copySelectedTemplate() {
-        if (!state.editorTemplate) return;
-        const code = $('templateCode').value + '-copy';
+        if (!requireEditorTemplate('leftStatus')) return;
+        const code = makeCopyCode($('templateCode').value);
         const name = $('templateName').value + ' Copy';
         const data = await api('/api/label-templates/' + encodeURIComponent(state.editorTemplate.code) + '/copy', {
             method: 'POST',
@@ -697,7 +771,11 @@
     }
 
     async function previewTemplateWithSample() {
-        if (!state.editorTemplate) return;
+        if (!requireEditorTemplate('rightStatus')) return;
+        if (!$('sampleProductId').value) {
+            setStatus('rightStatus', '请选择样例产品', 'error');
+            return;
+        }
         const data = await api('/api/label-templates/' + encodeURIComponent(state.editorTemplate.code) + '/preview', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -733,31 +811,34 @@
         await loadTemplates();
     }
 
-    $('reloadTemplatesBtn').onclick = loadTemplates;
-    $('labelType').onchange = loadTemplates;
-    $('templateStatus').onchange = loadTemplates;
-    $('saveTemplateBtn').onclick = saveTemplate;
-    $('copyTemplateBtn').onclick = copySelectedTemplate;
-    $('saveElementsBtn').onclick = saveElements;
-    $('legacyImportBtn').onclick = importLegacyTemplate;
-    $('imageImportBtn').onclick = importImageTemplate;
-    $('addTextBtn').onclick = () => addTemplateElement('STATIC_TEXT');
-    $('addMultilineBtn').onclick = () => addTemplateElement('STATIC_TEXT');
-    $('addFieldBtn').onclick = () => addTemplateElement('FIELD_TEXT');
-    $('addBarcodeBtn').onclick = () => addTemplateElement('BARCODE');
-    $('addQrBtn').onclick = () => addTemplateElement('QRCODE');
-    $('addLogoBtn').onclick = () => addTemplateElement('LOGO');
-    $('deleteElementBtn').onclick = deleteSelectedElement;
-    $('duplicateElementBtn').onclick = duplicateSelectedElements;
-    $('alignLeftBtn').onclick = () => alignSelectedElements('left');
-    $('alignRightBtn').onclick = () => alignSelectedElements('right');
-    $('alignTopBtn').onclick = () => alignSelectedElements('top');
-    $('alignBottomBtn').onclick = () => alignSelectedElements('bottom');
-    $('layerUpBtn').onclick = () => moveSelectedLayer('up');
-    $('layerDownBtn').onclick = () => moveSelectedLayer('down');
-    $('layerTopBtn').onclick = () => moveSelectedLayer('top');
-    $('layerBottomBtn').onclick = () => moveSelectedLayer('bottom');
-    $('templatePreviewBtn').onclick = previewTemplateWithSample;
+    $('reloadTemplatesBtn').onclick = () => runAction('leftStatus', loadTemplates);
+    $('labelType').onchange = () => runAction('leftStatus', async () => {
+        state.editorTemplate = null;
+        await loadTemplates();
+    });
+    $('templateStatus').onchange = () => runAction('leftStatus', loadTemplates);
+    $('saveTemplateBtn').onclick = () => runAction('leftStatus', saveTemplate);
+    $('copyTemplateBtn').onclick = () => runAction('leftStatus', copySelectedTemplate);
+    $('saveElementsBtn').onclick = () => runAction('middleStatus', saveElements);
+    $('legacyImportBtn').onclick = () => runAction('leftStatus', importLegacyTemplate);
+    $('imageImportBtn').onclick = () => runAction('leftStatus', importImageTemplate);
+    $('addTextBtn').onclick = () => runAction('middleStatus', () => addTemplateElement('STATIC_TEXT'));
+    $('addMultilineBtn').onclick = () => runAction('middleStatus', () => addTemplateElement('STATIC_TEXT', '', {text: '多行文本', heightMm: 16, widthMm: 60}));
+    $('addFieldBtn').onclick = () => runAction('middleStatus', () => addTemplateElement('FIELD_TEXT'));
+    $('addBarcodeBtn').onclick = () => runAction('middleStatus', () => addTemplateElement('BARCODE'));
+    $('addQrBtn').onclick = () => runAction('middleStatus', () => addTemplateElement('QRCODE'));
+    $('addLogoBtn').onclick = () => runAction('middleStatus', () => addTemplateElement('LOGO'));
+    $('deleteElementBtn').onclick = () => runAction('middleStatus', deleteSelectedElement);
+    $('duplicateElementBtn').onclick = () => runAction('middleStatus', duplicateSelectedElements);
+    $('alignLeftBtn').onclick = () => runAction('middleStatus', () => alignSelectedElements('left'));
+    $('alignRightBtn').onclick = () => runAction('middleStatus', () => alignSelectedElements('right'));
+    $('alignTopBtn').onclick = () => runAction('middleStatus', () => alignSelectedElements('top'));
+    $('alignBottomBtn').onclick = () => runAction('middleStatus', () => alignSelectedElements('bottom'));
+    $('layerUpBtn').onclick = () => runAction('middleStatus', () => moveSelectedLayer('up'));
+    $('layerDownBtn').onclick = () => runAction('middleStatus', () => moveSelectedLayer('down'));
+    $('layerTopBtn').onclick = () => runAction('middleStatus', () => moveSelectedLayer('top'));
+    $('layerBottomBtn').onclick = () => runAction('middleStatus', () => moveSelectedLayer('bottom'));
+    $('templatePreviewBtn').onclick = () => runAction('rightStatus', previewTemplateWithSample);
 
     Promise.all([loadFieldContract(), loadTemplates(), loadSampleProducts()])
         .catch((error) => setStatus('leftStatus', error.message, 'error'));

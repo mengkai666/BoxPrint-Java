@@ -70,9 +70,12 @@ class TemplateStudioControllerTest {
                 .contains("layerList")
                 .contains("sampleProductId")
                 .contains("function renderTemplateEditor")
+                .contains("function copySelectedTemplate")
                 .contains("function duplicateSelectedElements")
                 .contains("function alignSelectedElements")
                 .contains("function moveSelectedLayer")
+                .contains("Array.isArray(data)")
+                .contains("copyTemplateBtn")
                 .doesNotContain("提交打印");
     }
 
@@ -300,6 +303,17 @@ class TemplateStudioControllerTest {
                 .andExpect(jsonPath("$.importSource").value("COPY"))
                 .andExpect(jsonPath("$.elements.length()", greaterThan(8)))
                 .andExpect(jsonPath("$.elements[*].fieldName", hasItem("boxLabelName")));
+    }
+
+    @Test
+    void templatePreviewUsesSelectedProductAndTemplate() throws Exception {
+        mockMvc.perform(post("/api/label-templates/box-config-standard/preview")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"productConfigId\":\"DEMO-BOX-LONGTEXT\",\"productionDate\":\"2026-06-08\",\"shift\":\"A\",\"labelType\":\"BOX\",\"format\":\"PNG\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.templateCode").value("box-config-standard"))
+                .andExpect(jsonPath("$.format").value("PNG"))
+                .andExpect(jsonPath("$.previewUrl", startsWith("/api/box-labels/files/")));
     }
 
     @Test

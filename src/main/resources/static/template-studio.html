@@ -330,7 +330,13 @@
 
     async function loadFieldContract() {
         const data = await api('/api/box-labels/field-contract');
-        state.fieldContract = data.fields || data.items || [];
+        const fields = Array.isArray(data) ? data : (data.fields || data.items || []);
+        state.fieldContract = fields.map((item) => ({
+            fieldName: item.fieldName || item.javaFieldName,
+            displayName: item.displayName || item.vfpFieldName || item.javaFieldName,
+            category: item.category || item.source || '',
+            required: item.requiredForFrx
+        })).filter((item) => item.fieldName);
         renderFieldPalette();
     }
 
@@ -668,6 +674,21 @@
         renderTemplateEditor(data);
     }
 
+    async function copySelectedTemplate() {
+        if (!state.editorTemplate) return;
+        const code = $('templateCode').value + '-copy';
+        const name = $('templateName').value + ' Copy';
+        const data = await api('/api/label-templates/' + encodeURIComponent(state.editorTemplate.code) + '/copy', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({code: code, name: name})
+        });
+        setStatus('leftStatus', `已复制 ${data.code}`, 'ok');
+        state.editorTemplate = data;
+        await loadTemplates();
+        loadTemplateIntoEditor(data.code);
+    }
+
     async function loadSampleProducts() {
         const data = await api('/api/name-conversions/products?keyword=DEMO');
         $('sampleProductId').innerHTML = (data.items || []).map((item) =>
@@ -716,6 +737,7 @@
     $('labelType').onchange = loadTemplates;
     $('templateStatus').onchange = loadTemplates;
     $('saveTemplateBtn').onclick = saveTemplate;
+    $('copyTemplateBtn').onclick = copySelectedTemplate;
     $('saveElementsBtn').onclick = saveElements;
     $('legacyImportBtn').onclick = importLegacyTemplate;
     $('imageImportBtn').onclick = importImageTemplate;

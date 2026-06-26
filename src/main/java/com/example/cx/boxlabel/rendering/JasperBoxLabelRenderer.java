@@ -30,13 +30,16 @@ import org.springframework.stereotype.Component;
 import javax.imageio.ImageIO;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
+import java.beans.PropertyDescriptor;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,11 +60,15 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
     @Override
     public RenderedLabel render(BoxLabelPrintRow row, LabelTemplate template, LabelOutputFormat format) {
         try {
-            JasperReport report = compile(row, template);
-            Map<String, Object> parameters = new HashMap<String, Object>();
-            parameters.put("QR_IMAGE", barcodeImageService.qrCode(row.getQrCode(), 180));
-            parameters.put("BARCODE_IMAGE", barcodeImageService.code128(row.getProductBarcode()));
-            parameters.put("LOGO_IMAGE", loadOptionalLogo(row.getLogoPath()));
+            boolean configLayout = "CONFIG_LAYOUT".equals(template.getEngine());
+            List<LabelTemplateElement> visibleElements = configLayout
+                    ? visibleSortedElements(template.getElements(), row)
+                    : Collections.<LabelTemplateElement>emptyList();
+            Map<LabelTemplateElement, String> elementImageParameters = configLayout
+                    ? elementImageParameters(visibleElements)
+                    : Collections.<LabelTemplateElement, String>emptyMap();
+            JasperReport report = compile(row, template, visibleElements, elementImageParameters);
+            Map<String, Object> parameters = buildParameters(row, visibleElements, elementImageParameters);
             JasperPrint print = JasperFillManager.fillReport(
                     report,
                     parameters,
@@ -74,15 +81,42 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
         }
     }
 
-    private JasperReport compile(BoxLabelPrintRow row, LabelTemplate template) throws JRException {
+    private JasperReport compile(BoxLabelPrintRow row,
+                                 LabelTemplate template,
+                                 List<LabelTemplateElement> visibleElements,
+                                 Map<LabelTemplateElement, String> elementImageParameters) throws JRException {
         if ("CONFIG_LAYOUT".equals(template.getEngine())) {
-            return JasperCompileManager.compileReport(buildDesign(row, template));
+            return JasperCompileManager.compileReport(buildDesign(row, template, visibleElements, elementImageParameters));
         }
         Path templatePath = outputStore.resolveTemplate(template);
         return JasperCompileManager.compileReport(templatePath.toString());
     }
 
-    private JasperDesign buildDesign(BoxLabelPrintRow row, LabelTemplate template) throws JRException {
+    private Map<String, Object> buildParameters(BoxLabelPrintRow row,
+                                                List<LabelTemplateElement> visibleElements,
+                                                Map<LabelTemplateElement, String> elementImageParameters) {
+        Map<String, Object> parameters = new HashMap<String, Object>();
+        parameters.put("QR_IMAGE", barcodeImageService.qrCode(row.getQrCode(), 180));
+        parameters.put("BARCODE_IMAGE", barcodeImageService.code128(row.getProductBarcode()));
+        parameters.put("LOGO_IMAGE", loadOptionalLogo(row.getLogoPath()));
+        for (LabelTemplateElement element : visibleElements) {
+            String parameterName = elementImageParameters.get(element);
+            if (parameterName == null) {
+                continue;
+            }
+            if ("BARCODE".equals(element.getType())) {
+                parameters.put(parameterName, barcodeImageService.code128(codePayload(row, element, row.getProductBarcode())));
+            } else if ("QRCODE".equals(element.getType())) {
+                parameters.put(parameterName, barcodeImageService.qrCode(codePayload(row, element, row.getQrCode()), 180));
+            }
+        }
+        return parameters;
+    }
+
+    private JasperDesign buildDesign(BoxLabelPrintRow row,
+                                     LabelTemplate template,
+                                     List<LabelTemplateElement> visibleElements,
+                                     Map<LabelTemplateElement, String> elementImageParameters) throws JRException {
         JasperDesign design = new JasperDesign();
         design.setName(("label_" + template.getCode()).replaceAll("[^A-Za-z0-9_]", "_"));
         int pageWidth = mmToPoint(template.getPageWidthMm() <= 0 ? 120 : template.getPageWidthMm());
@@ -98,26 +132,23 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
         addImageParameter(design, "QR_IMAGE");
         addImageParameter(design, "BARCODE_IMAGE");
         addImageParameter(design, "LOGO_IMAGE");
-        addFields(design, template.getElements(), row);
+        addFields(design, visibleElements);
+        for (String parameterName : elementImageParameters.values()) {
+            addImageParameter(design, parameterName);
+        }
 
         JRDesignBand detail = new JRDesignBand();
         detail.setHeight(pageHeight);
-        for (LabelTemplateElement element : sortedElements(template.getElements())) {
-            if (!visibilityEvaluator.isVisible(element, row)) {
-                continue;
-            }
-            addElement(detail, element);
+        for (LabelTemplateElement element : visibleElements) {
+            addElement(detail, element, elementImageParameters);
         }
         ((JRDesignSection) design.getDetailSection()).addBand(detail);
         return design;
     }
 
-    private void addFields(JasperDesign design, List<LabelTemplateElement> elements, BoxLabelPrintRow row) throws JRException {
+    private void addFields(JasperDesign design, List<LabelTemplateElement> elements) throws JRException {
         Set<String> names = new HashSet<String>();
         for (LabelTemplateElement element : elements) {
-            if (!visibilityEvaluator.isVisible(element, row)) {
-                continue;
-            }
             if ("FIELD_TEXT".equals(element.getType()) && element.getFieldName() != null && !element.getFieldName().trim().isEmpty()) {
                 names.add(element.getFieldName().trim());
             }
@@ -137,6 +168,28 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
         design.addParameter(parameter);
     }
 
+    private List<LabelTemplateElement> visibleSortedElements(List<LabelTemplateElement> elements, BoxLabelPrintRow row) {
+        List<LabelTemplateElement> visible = new ArrayList<LabelTemplateElement>();
+        for (LabelTemplateElement element : sortedElements(elements)) {
+            if (visibilityEvaluator.isVisible(element, row)) {
+                visible.add(element);
+            }
+        }
+        return visible;
+    }
+
+    private Map<LabelTemplateElement, String> elementImageParameters(List<LabelTemplateElement> visibleElements) {
+        Map<LabelTemplateElement, String> names = new IdentityHashMap<LabelTemplateElement, String>();
+        int imageIndex = 1;
+        for (LabelTemplateElement element : visibleElements) {
+            if ("BARCODE".equals(element.getType()) || "QRCODE".equals(element.getType())) {
+                names.put(element, "ELEMENT_IMAGE_" + imageIndex);
+                imageIndex++;
+            }
+        }
+        return names;
+    }
+
     private List<LabelTemplateElement> sortedElements(List<LabelTemplateElement> elements) {
         List<LabelTemplateElement> copy = new ArrayList<LabelTemplateElement>(elements == null ? Collections.<LabelTemplateElement>emptyList() : elements);
         Collections.sort(copy, new java.util.Comparator<LabelTemplateElement>() {
@@ -148,7 +201,9 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
         return copy;
     }
 
-    private void addElement(JRDesignBand detail, LabelTemplateElement element) {
+    private void addElement(JRDesignBand detail,
+                            LabelTemplateElement element,
+                            Map<LabelTemplateElement, String> elementImageParameters) {
         String type = element.getType() == null ? "STATIC_TEXT" : element.getType();
         if ("FIELD_TEXT".equals(type)) {
             JRDesignTextField textField = new JRDesignTextField();
@@ -159,9 +214,9 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
             textField.setExpression(expression);
             detail.addElement(textField);
         } else if ("BARCODE".equals(type)) {
-            detail.addElement(imageElement(element, "BARCODE_IMAGE"));
+            detail.addElement(imageElement(element, elementImageParameters.get(element)));
         } else if ("QRCODE".equals(type)) {
-            detail.addElement(imageElement(element, "QR_IMAGE"));
+            detail.addElement(imageElement(element, elementImageParameters.get(element)));
         } else if ("LOGO".equals(type)) {
             detail.addElement(imageElement(element, "LOGO_IMAGE"));
         } else if ("LINE".equals(type)) {
@@ -188,6 +243,36 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
         expression.setText("$P{" + parameterName + "}");
         image.setExpression(expression);
         return image;
+    }
+
+    private String codePayload(BoxLabelPrintRow row, LabelTemplateElement element, String defaultValue) {
+        String customText = trimToNull(element.getText());
+        if (customText != null) {
+            return customText;
+        }
+        String fieldName = trimToNull(element.getFieldName());
+        if (fieldName != null) {
+            return fieldValue(row, fieldName);
+        }
+        return defaultValue == null ? "" : defaultValue;
+    }
+
+    private String fieldValue(BoxLabelPrintRow row, String field) {
+        if (row == null || field == null || field.trim().isEmpty()) {
+            return "";
+        }
+        try {
+            PropertyDescriptor descriptor = new PropertyDescriptor(field.trim(), BoxLabelPrintRow.class);
+            Method readMethod = descriptor.getReadMethod();
+            Object value = readMethod == null ? null : readMethod.invoke(row);
+            return value == null ? "" : String.valueOf(value);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private String trimToNull(String value) {
+        return value == null || value.trim().isEmpty() ? null : value.trim();
     }
 
     private void place(net.sf.jasperreports.engine.design.JRDesignElement designElement, LabelTemplateElement element) {

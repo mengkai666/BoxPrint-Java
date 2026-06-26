@@ -72,6 +72,11 @@ class TemplateStudioControllerTest {
                 "vendor/vue.global.prod.js",
                 "handleEditorKeydown",
                 "data-editor-shortcuts",
+                "draggable=\"true\"",
+                "beginPaletteDrag",
+                "dropPaletteElement",
+                "codeContentMode",
+                "customCodeContent",
                 "resize-handle",
                 "textAlign",
                 "RECTANGLE");

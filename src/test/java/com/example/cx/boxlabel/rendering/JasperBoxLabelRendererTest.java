@@ -11,6 +11,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -91,6 +93,30 @@ class JasperBoxLabelRendererTest {
         assertThat(png.getSizeBytes()).isGreaterThan(1000);
     }
 
+    @Test
+    void rendersConfigLayoutBarcodeAndQrCodeWithElementSpecificContent() {
+        PrintingProperties properties = new PrintingProperties();
+        properties.setTemplatePath("src/main/resources/reports");
+        properties.setOutputPath(tempDir.toString());
+        RecordingBarcodeImageService barcodeImageService = new RecordingBarcodeImageService();
+        JasperBoxLabelRenderer renderer = new JasperBoxLabelRenderer(
+                barcodeImageService,
+                new FileSystemRenderOutputStore(properties)
+        );
+        LabelTemplate template = LabelTemplate.configLayout("config-custom-code", "Config Custom Code", "BOX", 120, 80);
+        template.setElements(java.util.Arrays.asList(
+                element("BARCODE", "CUSTOM-CODE-128", null, 4, 54, 60, 14, 10, false, "left"),
+                element("QRCODE", "CUSTOM-QR-PAYLOAD", null, 84, 46, 22, 22, 10, false, "left")
+        ));
+
+        RenderedLabel png = renderer.render(sampleRow(), template, LabelOutputFormat.PNG);
+
+        assertThat(Files.exists(png.getFilePath())).isTrue();
+        assertThat(png.getSizeBytes()).isGreaterThan(1000);
+        assertThat(barcodeImageService.code128Payloads).contains("CUSTOM-CODE-128");
+        assertThat(barcodeImageService.qrCodePayloads).contains("CUSTOM-QR-PAYLOAD");
+    }
+
     private BoxLabelPrintRow sampleRow() {
         BoxLabelPrintRow row = new BoxLabelPrintRow();
         row.setBoxTemplateName("箱贴通用模版");
@@ -138,5 +164,22 @@ class JasperBoxLabelRendererTest {
         element.setBold(bold);
         element.setTextAlign(textAlign);
         return element;
+    }
+
+    private static class RecordingBarcodeImageService extends BarcodeImageService {
+        private final List<String> code128Payloads = new ArrayList<String>();
+        private final List<String> qrCodePayloads = new ArrayList<String>();
+
+        @Override
+        public java.awt.image.BufferedImage code128(String payload) {
+            code128Payloads.add(payload);
+            return super.code128(payload);
+        }
+
+        @Override
+        public java.awt.image.BufferedImage qrCode(String payload, int size) {
+            qrCodePayloads.add(payload);
+            return super.qrCode(payload, size);
+        }
     }
 }

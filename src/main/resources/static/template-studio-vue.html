@@ -346,6 +346,10 @@
             min-height: 34px;
         }
 
+        .tool-grid button[draggable="true"] {
+            cursor: grab;
+        }
+
         .editor-main {
             min-height: 0;
             display: grid;
@@ -714,13 +718,13 @@
                     <small>添加到画布</small>
                 </div>
                 <div class="tool-grid">
-                    <button type="button" @click="addElement('STATIC_TEXT')">文本</button>
-                    <button type="button" @click="addElement('FIELD_TEXT')">字段值</button>
-                    <button type="button" @click="addElement('BARCODE')">条码</button>
-                    <button type="button" @click="addElement('QRCODE')">二维码</button>
-                    <button type="button" @click="addElement('LOGO')">Logo</button>
-                    <button type="button" @click="addElement('LINE')">线条</button>
-                    <button type="button" @click="addElement('RECTANGLE')">矩形</button>
+                    <button type="button" draggable="true" @dragstart="beginPaletteDrag($event, 'STATIC_TEXT')" @dragend="endPaletteDrag" @click="addElement('STATIC_TEXT')">文本</button>
+                    <button type="button" draggable="true" @dragstart="beginPaletteDrag($event, 'FIELD_TEXT')" @dragend="endPaletteDrag" @click="addElement('FIELD_TEXT')">字段值</button>
+                    <button type="button" draggable="true" @dragstart="beginPaletteDrag($event, 'BARCODE')" @dragend="endPaletteDrag" @click="addElement('BARCODE')">条码</button>
+                    <button type="button" draggable="true" @dragstart="beginPaletteDrag($event, 'QRCODE')" @dragend="endPaletteDrag" @click="addElement('QRCODE')">二维码</button>
+                    <button type="button" draggable="true" @dragstart="beginPaletteDrag($event, 'LOGO')" @dragend="endPaletteDrag" @click="addElement('LOGO')">Logo</button>
+                    <button type="button" draggable="true" @dragstart="beginPaletteDrag($event, 'LINE')" @dragend="endPaletteDrag" @click="addElement('LINE')">线条</button>
+                    <button type="button" draggable="true" @dragstart="beginPaletteDrag($event, 'RECTANGLE')" @dragend="endPaletteDrag" @click="addElement('RECTANGLE')">矩形</button>
                 </div>
             </section>
 
@@ -791,6 +795,8 @@
                          class="template-canvas"
                          ref="canvas"
                          :style="canvasStyle"
+                         @dragover.prevent
+                         @drop.prevent="dropPaletteElement($event)"
                          @pointerdown.self="clearSelection">
                         <div v-if="!elementList.length" class="canvas-empty">空模板</div>
                         <div v-for="element in elementList"
@@ -895,7 +901,7 @@
                     </div>
                 </div>
 
-                <div v-if="selectedElement.type === 'FIELD_TEXT' || selectedElement.type === 'BARCODE' || selectedElement.type === 'QRCODE'" class="form-row" style="margin-top:10px;">
+                <div v-if="selectedElement.type === 'FIELD_TEXT'" class="form-row" style="margin-top:10px;">
                     <label>字段值绑定</label>
                     <select v-model="selectedElement.fieldName" @change="markDirty">
                         <option value="">未绑定</option>
@@ -903,6 +909,31 @@
                             {{ field.displayName || field.fieldName }} · {{ field.fieldName }}
                         </option>
                     </select>
+                </div>
+
+                <div v-if="codeElementSelected(selectedElement)" class="condition-builder" style="margin-top:10px;">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <span>码内容</span>
+                        <small>{{ codeContentPreview(selectedElement) }}</small>
+                    </div>
+                    <div class="segmented">
+                        <button type="button" :class="{active: codeContentMode(selectedElement) === 'default'}" @click="setCodeContentMode('default')">默认</button>
+                        <button type="button" :class="{active: codeContentMode(selectedElement) === 'field'}" @click="setCodeContentMode('field')">字段</button>
+                        <button type="button" :class="{active: codeContentMode(selectedElement) === 'custom'}" @click="setCodeContentMode('custom')">自定义</button>
+                    </div>
+                    <div v-if="codeContentMode(selectedElement) === 'field'" class="form-row">
+                        <label>绑定字段</label>
+                        <select v-model="selectedElement.fieldName" @change="markDirty">
+                            <option value="">选择字段</option>
+                            <option v-for="field in fieldSources" :key="field.fieldName" :value="field.fieldName">
+                                {{ field.displayName || field.fieldName }} · {{ field.fieldName }}
+                            </option>
+                        </select>
+                    </div>
+                    <div v-if="codeContentMode(selectedElement) === 'custom'" class="form-row">
+                        <label>自定义内容</label>
+                        <textarea v-model="selectedElement.text" @input="customCodeContent" placeholder="输入条码或二维码最终编码内容"></textarea>
+                    </div>
                 </div>
 
                 <div v-if="selectedElement.type === 'STATIC_TEXT'" class="form-row" style="margin-top:10px;">
@@ -1052,7 +1083,8 @@
                 busyText: '处理中',
                 statusText: '就绪',
                 statusType: '',
-                dirty: false
+                dirty: false,
+                dragPaletteType: ''
             };
         },
         computed: {
@@ -1222,6 +1254,7 @@
             },
             elementTitle(element) {
                 if (element.type === 'STATIC_TEXT') return element.text || '文本';
+                if (this.codeElementSelected(element)) return this.codeContentShortLabel(element);
                 if (element.fieldName) return this.fieldLabel(element.fieldName);
                 return this.typeLabel(element.type);
             },
@@ -1239,19 +1272,25 @@
                 if (field.fieldStatus === 'FALLBACK') return 'warn';
                 return 'ok';
             },
-            addElement(type) {
+            addElement(type, position) {
                 if (!this.activeTemplate) return;
                 const pageWidth = Number(this.activeTemplate.pageWidthMm || 120);
                 const pageHeight = Number(this.activeTemplate.pageHeightMm || 80);
                 const defaults = this.defaultElementSize(type);
+                const leftMm = position && typeof position.leftMm === 'number'
+                    ? this.snap(this.clamp(position.leftMm, 0, pageWidth - defaults.widthMm))
+                    : this.snap(Math.max(2, (pageWidth - defaults.widthMm) / 2));
+                const topMm = position && typeof position.topMm === 'number'
+                    ? this.snap(this.clamp(position.topMm, 0, pageHeight - defaults.heightMm))
+                    : this.snap(Math.max(2, (pageHeight - defaults.heightMm) / 2));
                 const element = this.normalizeElement({
                     id: this.newId(),
                     sortOrder: this.elementList.length + 1,
                     type: type,
                     text: type === 'STATIC_TEXT' ? '文本' : '',
                     fieldName: type === 'FIELD_TEXT' ? (this.fieldSources[0] && this.fieldSources[0].fieldName) || '' : '',
-                    leftMm: this.snap(Math.max(2, (pageWidth - defaults.widthMm) / 2)),
-                    topMm: this.snap(Math.max(2, (pageHeight - defaults.heightMm) / 2)),
+                    leftMm: leftMm,
+                    topMm: topMm,
                     widthMm: defaults.widthMm,
                     heightMm: defaults.heightMm,
                     fontSize: type === 'STATIC_TEXT' ? 11 : 9,
@@ -1261,6 +1300,50 @@
                 this.renumberElements();
                 this.selectElement(element.id);
                 this.markDirty();
+            },
+            beginPaletteDrag(event, type) {
+                if (!this.isPaletteElementType(type) || !this.activeTemplate) {
+                    if (event && event.preventDefault) event.preventDefault();
+                    return;
+                }
+                this.dragPaletteType = type;
+                if (event.dataTransfer) {
+                    event.dataTransfer.effectAllowed = 'copy';
+                    event.dataTransfer.setData('application/x-template-element-type', type);
+                    event.dataTransfer.setData('text/plain', type);
+                }
+            },
+            endPaletteDrag() {
+                this.dragPaletteType = '';
+            },
+            dropPaletteElement(event) {
+                const type = this.paletteTypeFromDrop(event);
+                if (!this.isPaletteElementType(type) || !this.activeTemplate) return;
+                const point = this.canvasPointFromEvent(event, this.defaultElementSize(type));
+                this.addElement(type, point);
+                this.dragPaletteType = '';
+            },
+            paletteTypeFromDrop(event) {
+                if (event.dataTransfer) {
+                    const customType = event.dataTransfer.getData('application/x-template-element-type');
+                    const textType = event.dataTransfer.getData('text/plain');
+                    if (this.isPaletteElementType(customType)) return customType;
+                    if (this.isPaletteElementType(textType)) return textType;
+                }
+                return this.dragPaletteType;
+            },
+            canvasPointFromEvent(event, defaults) {
+                const canvas = this.$refs.canvas;
+                const rect = canvas ? canvas.getBoundingClientRect() : {left: 0, top: 0};
+                const rawLeft = (event.clientX - rect.left) / this.zoom;
+                const rawTop = (event.clientY - rect.top) / this.zoom;
+                return {
+                    leftMm: this.snap(this.clamp(rawLeft, 0, this.pageWidth() - defaults.widthMm)),
+                    topMm: this.snap(this.clamp(rawTop, 0, this.pageHeight() - defaults.heightMm))
+                };
+            },
+            isPaletteElementType(type) {
+                return ['STATIC_TEXT', 'FIELD_TEXT', 'BARCODE', 'QRCODE', 'LOGO', 'LINE', 'RECTANGLE'].indexOf(type) >= 0;
             },
             defaultElementSize(type) {
                 if (type === 'BARCODE') return {widthMm: 44, heightMm: 14};
@@ -1273,6 +1356,9 @@
             addOrBindField(field) {
                 if (this.selectedElement && ['FIELD_TEXT', 'BARCODE', 'QRCODE'].indexOf(this.selectedElement.type) >= 0) {
                     this.selectedElement.fieldName = field.fieldName;
+                    if (this.codeElementSelected(this.selectedElement)) {
+                        this.selectedElement.text = '';
+                    }
                     this.markDirty();
                     return;
                 }
@@ -1281,6 +1367,68 @@
                     this.selectedElement.fieldName = field.fieldName;
                     this.markDirty();
                 }
+            },
+            codeElementSelected(element) {
+                return !!element && (element.type === 'BARCODE' || element.type === 'QRCODE');
+            },
+            defaultCodeField(elementOrType) {
+                const type = typeof elementOrType === 'string' ? elementOrType : (elementOrType && elementOrType.type);
+                return type === 'QRCODE' ? 'qrCode' : 'productBarcode';
+            },
+            defaultCodeContent(element) {
+                return this.fieldValue(this.defaultCodeField(element)) || '';
+            },
+            codeContentMode(element) {
+                if (!this.codeElementSelected(element)) return '';
+                if (element.fieldName) return 'field';
+                if (String(element.text || '').trim()) return 'custom';
+                return 'default';
+            },
+            setCodeContentMode(mode) {
+                if (!this.codeElementSelected(this.selectedElement)) return;
+                if (mode === 'default') {
+                    this.selectedElement.fieldName = '';
+                    this.selectedElement.text = '';
+                } else if (mode === 'field') {
+                    this.selectedElement.text = '';
+                    if (!this.selectedElement.fieldName) {
+                        this.selectedElement.fieldName = this.defaultCodeField(this.selectedElement);
+                    }
+                } else if (mode === 'custom') {
+                    if (!String(this.selectedElement.text || '').trim()) {
+                        this.selectedElement.text = this.fieldValue(this.selectedElement.fieldName)
+                            || this.defaultCodeContent(this.selectedElement)
+                            || (this.selectedElement.type === 'QRCODE' ? 'QR-CODE-CONTENT' : 'CODE-128-CONTENT');
+                    }
+                    this.selectedElement.fieldName = '';
+                }
+                this.markDirty();
+            },
+            customCodeContent() {
+                if (this.codeElementSelected(this.selectedElement)) {
+                    this.selectedElement.fieldName = '';
+                }
+                this.markDirty();
+            },
+            codeContentPreview(element) {
+                if (!this.codeElementSelected(element)) return '';
+                if (element.fieldName) {
+                    return '字段 ' + this.clip(this.fieldLabel(element.fieldName) + ' = ' + (this.fieldValue(element.fieldName) || '空值'), 56);
+                }
+                if (String(element.text || '').trim()) {
+                    return '自定义 ' + this.clip(element.text, 56);
+                }
+                return '默认 ' + this.clip(this.fieldLabel(this.defaultCodeField(element)) + ' = ' + (this.defaultCodeContent(element) || '空值'), 56);
+            },
+            codeContentShortLabel(element) {
+                if (!this.codeElementSelected(element)) return this.typeLabel(element.type);
+                if (element.fieldName) return this.clip('字段 ' + this.fieldLabel(element.fieldName), 36);
+                if (String(element.text || '').trim()) return this.clip('自定义 ' + element.text, 36);
+                return this.clip('默认 ' + this.fieldLabel(this.defaultCodeField(element)), 36);
+            },
+            clip(value, maxLength) {
+                const text = String(value || '');
+                return text.length > maxLength ? text.slice(0, maxLength - 1) + '…' : text;
             },
             selectElement(id) {
                 this.selectedElementId = id;
@@ -1331,6 +1479,7 @@
             },
             elementBadge(element) {
                 if (!this.isVisibleInSample(element)) return '条件隐藏';
+                if (this.codeElementSelected(element)) return this.codeContentShortLabel(element);
                 if (element.fieldName) return this.fieldLabel(element.fieldName);
                 return this.typeLabel(element.type);
             },

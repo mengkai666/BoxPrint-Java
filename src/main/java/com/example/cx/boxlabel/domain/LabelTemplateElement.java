@@ -13,6 +13,11 @@ public class LabelTemplateElement {
     private double heightMm;
     private int fontSize = 10;
     private boolean bold;
+    private String textAlign = "left";
+    private boolean locked;
+    private String visibleWhenField;
+    private String visibleWhenOperator;
+    private String visibleWhenValue;
 
     public String getId() {
         return id;
@@ -100,5 +105,45 @@ public class LabelTemplateElement {
 
     public void setBold(boolean bold) {
         this.bold = bold;
+    }
+
+    public String getTextAlign() {
+        return textAlign;
+    }
+
+    public void setTextAlign(String textAlign) {
+        this.textAlign = textAlign;
+    }
+
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public void setLocked(boolean locked) {
+        this.locked = locked;
+    }
+
+    public String getVisibleWhenField() {
+        return visibleWhenField;
+    }
+
+    public void setVisibleWhenField(String visibleWhenField) {
+        this.visibleWhenField = visibleWhenField;
+    }
+
+    public String getVisibleWhenOperator() {
+        return visibleWhenOperator;
+    }
+
+    public void setVisibleWhenOperator(String visibleWhenOperator) {
+        this.visibleWhenOperator = visibleWhenOperator;
+    }
+
+    public String getVisibleWhenValue() {
+        return visibleWhenValue;
+    }
+
+    public void setVisibleWhenValue(String visibleWhenValue) {
+        this.visibleWhenValue = visibleWhenValue;
     }
 }

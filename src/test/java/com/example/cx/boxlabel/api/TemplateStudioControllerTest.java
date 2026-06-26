@@ -51,10 +51,10 @@ class TemplateStudioControllerTest {
     void templateStudioServesDedicatedTemplateMaintenanceWorkspace() throws Exception {
         mockMvc.perform(get("/template-studio"))
                 .andExpect(status().isOk())
-                .andExpect(forwardedUrl("template-studio.html"));
+                .andExpect(forwardedUrl("template-studio-vue.html"));
 
         String html = new String(
-                mockMvc.perform(get("/template-studio.html"))
+                mockMvc.perform(get("/template-studio-vue.html"))
                         .andExpect(status().isOk())
                         .andReturn()
                         .getResponse()
@@ -62,37 +62,26 @@ class TemplateStudioControllerTest {
                 StandardCharsets.UTF_8
         );
 
-        org.assertj.core.api.Assertions.assertThat(html)
-                .contains("模板维护中心")
-                .contains("templateCanvas")
-                .contains("fieldPalette")
-                .contains("elementInspector")
-                .contains("layerList")
-                .contains("sampleProductId")
-                .contains("function renderTemplateEditor")
-                .contains("function copySelectedTemplate")
-                .contains("function duplicateSelectedElements")
-                .contains("function alignSelectedElements")
-                .contains("function moveSelectedLayer")
-                .contains("fieldContractGroups")
-                .contains("field-group")
-                .contains("function preferredEditableTemplateCode")
-                .contains("function requireEditorTemplate")
-                .contains("function runAction")
-                .contains("function handleActionError")
-                .contains("function makeCopyCode")
-                .contains("多行文本")
-                .contains("请选择 CONFIG_LAYOUT 模板")
-                .contains("fieldSearch")
-                .contains("fieldPaletteSupport")
-                .contains("support-grid")
-                .contains("commonFieldNames")
-                .contains("function renderFieldSearch")
-                .contains("function shouldOpenFieldGroup")
-                .contains("常用字段")
-                .contains("Array.isArray(data)")
-                .contains("copyTemplateBtn")
-                .doesNotContain("提交打印");
+        assertHtmlContains(html,
+                "vue-template-studio",
+                "condition-builder",
+                "beginElementDrag",
+                "function beginElementResize",
+                "visibleWhenOperator",
+                "createApp",
+                "vendor/vue.global.prod.js",
+                "handleEditorKeydown",
+                "data-editor-shortcuts",
+                "resize-handle",
+                "textAlign",
+                "RECTANGLE");
+        org.assertj.core.api.Assertions.assertThat(html).doesNotContain("提交打印");
+    }
+
+    private void assertHtmlContains(String html, String... markers) {
+        for (String marker : markers) {
+            org.assertj.core.api.Assertions.assertThat(html).contains(marker);
+        }
     }
 
     @Test
@@ -145,15 +134,18 @@ class TemplateStudioControllerTest {
         mockMvc.perform(put("/api/label-templates/box-custom/elements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"elements\":["
-                                + "{\"type\":\"STATIC_TEXT\",\"text\":\"Custom Box Label\",\"leftMm\":4,\"topMm\":4,\"widthMm\":70,\"heightMm\":8,\"fontSize\":14},"
-                                + "{\"type\":\"FIELD_TEXT\",\"fieldName\":\"boxLabelName\",\"leftMm\":4,\"topMm\":14,\"widthMm\":90,\"heightMm\":8,\"fontSize\":12},"
+                                + "{\"type\":\"STATIC_TEXT\",\"text\":\"Custom Box Label\",\"leftMm\":4,\"topMm\":4,\"widthMm\":70,\"heightMm\":8,\"fontSize\":14,\"bold\":true,\"textAlign\":\"center\"},"
+                                + "{\"type\":\"FIELD_TEXT\",\"fieldName\":\"boxLabelName\",\"leftMm\":4,\"topMm\":14,\"widthMm\":90,\"heightMm\":8,\"fontSize\":12,\"textAlign\":\"right\"},"
                                 + "{\"type\":\"BARCODE\",\"leftMm\":4,\"topMm\":56,\"widthMm\":65,\"heightMm\":16},"
                                 + "{\"type\":\"QRCODE\",\"leftMm\":92,\"topMm\":48,\"widthMm\":22,\"heightMm\":22}"
                                 + "]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("box-custom"))
                 .andExpect(jsonPath("$.version").value("2"))
-                .andExpect(jsonPath("$.elements.length()").value(4));
+                .andExpect(jsonPath("$.elements.length()").value(4))
+                .andExpect(jsonPath("$.elements[0].bold").value(true))
+                .andExpect(jsonPath("$.elements[0].textAlign").value("center"))
+                .andExpect(jsonPath("$.elements[1].textAlign").value("right"));
 
         mockMvc.perform(get("/api/label-templates").param("labelType", "BOX"))
                 .andExpect(status().isOk())

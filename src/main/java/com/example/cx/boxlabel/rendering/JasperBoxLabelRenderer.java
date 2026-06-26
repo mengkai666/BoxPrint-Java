@@ -46,6 +46,7 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
 
     private final BarcodeImageService barcodeImageService;
     private final FileSystemRenderOutputStore outputStore;
+    private final ElementVisibilityEvaluator visibilityEvaluator = new ElementVisibilityEvaluator();
 
     public JasperBoxLabelRenderer(BarcodeImageService barcodeImageService,
                                   FileSystemRenderOutputStore outputStore) {
@@ -56,7 +57,7 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
     @Override
     public RenderedLabel render(BoxLabelPrintRow row, LabelTemplate template, LabelOutputFormat format) {
         try {
-            JasperReport report = compile(template);
+            JasperReport report = compile(row, template);
             Map<String, Object> parameters = new HashMap<String, Object>();
             parameters.put("QR_IMAGE", barcodeImageService.qrCode(row.getQrCode(), 180));
             parameters.put("BARCODE_IMAGE", barcodeImageService.code128(row.getProductBarcode()));
@@ -73,15 +74,15 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
         }
     }
 
-    private JasperReport compile(LabelTemplate template) throws JRException {
+    private JasperReport compile(BoxLabelPrintRow row, LabelTemplate template) throws JRException {
         if ("CONFIG_LAYOUT".equals(template.getEngine())) {
-            return JasperCompileManager.compileReport(buildDesign(template));
+            return JasperCompileManager.compileReport(buildDesign(row, template));
         }
         Path templatePath = outputStore.resolveTemplate(template);
         return JasperCompileManager.compileReport(templatePath.toString());
     }
 
-    private JasperDesign buildDesign(LabelTemplate template) throws JRException {
+    private JasperDesign buildDesign(BoxLabelPrintRow row, LabelTemplate template) throws JRException {
         JasperDesign design = new JasperDesign();
         design.setName(("label_" + template.getCode()).replaceAll("[^A-Za-z0-9_]", "_"));
         int pageWidth = mmToPoint(template.getPageWidthMm() <= 0 ? 120 : template.getPageWidthMm());
@@ -97,20 +98,26 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
         addImageParameter(design, "QR_IMAGE");
         addImageParameter(design, "BARCODE_IMAGE");
         addImageParameter(design, "LOGO_IMAGE");
-        addFields(design, template.getElements());
+        addFields(design, template.getElements(), row);
 
         JRDesignBand detail = new JRDesignBand();
         detail.setHeight(pageHeight);
         for (LabelTemplateElement element : sortedElements(template.getElements())) {
+            if (!visibilityEvaluator.isVisible(element, row)) {
+                continue;
+            }
             addElement(detail, element);
         }
         ((JRDesignSection) design.getDetailSection()).addBand(detail);
         return design;
     }
 
-    private void addFields(JasperDesign design, List<LabelTemplateElement> elements) throws JRException {
+    private void addFields(JasperDesign design, List<LabelTemplateElement> elements, BoxLabelPrintRow row) throws JRException {
         Set<String> names = new HashSet<String>();
         for (LabelTemplateElement element : elements) {
+            if (!visibilityEvaluator.isVisible(element, row)) {
+                continue;
+            }
             if ("FIELD_TEXT".equals(element.getType()) && element.getFieldName() != null && !element.getFieldName().trim().isEmpty()) {
                 names.add(element.getFieldName().trim());
             }
@@ -146,8 +153,7 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
         if ("FIELD_TEXT".equals(type)) {
             JRDesignTextField textField = new JRDesignTextField();
             place(textField, element);
-            textField.setFontSize(Float.valueOf(fontSize(element)));
-            textField.setBold(element.isBold());
+            applyTextStyle(textField, element);
             JRDesignExpression expression = new JRDesignExpression();
             expression.setText("$F{" + element.getFieldName() + "}");
             textField.setExpression(expression);
@@ -170,9 +176,7 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
             JRDesignStaticText text = new JRDesignStaticText();
             place(text, element);
             text.setText(element.getText() == null ? "" : element.getText());
-            text.setFontSize(Float.valueOf(fontSize(element)));
-            text.setBold(element.isBold());
-            text.setHorizontalTextAlign(HorizontalTextAlignEnum.LEFT);
+            applyTextStyle(text, element);
             detail.addElement(text);
         }
     }
@@ -199,6 +203,24 @@ public class JasperBoxLabelRenderer implements BoxLabelRenderer {
 
     private float fontSize(LabelTemplateElement element) {
         return element.getFontSize() <= 0 ? 10f : (float) element.getFontSize();
+    }
+
+    private void applyTextStyle(net.sf.jasperreports.engine.design.JRDesignTextElement textElement,
+                                LabelTemplateElement element) {
+        textElement.setFontSize(Float.valueOf(fontSize(element)));
+        textElement.setBold(element.isBold());
+        textElement.setHorizontalTextAlign(horizontalTextAlign(element));
+    }
+
+    private HorizontalTextAlignEnum horizontalTextAlign(LabelTemplateElement element) {
+        String value = element.getTextAlign() == null ? "" : element.getTextAlign().trim().toLowerCase();
+        if ("center".equals(value)) {
+            return HorizontalTextAlignEnum.CENTER;
+        }
+        if ("right".equals(value)) {
+            return HorizontalTextAlignEnum.RIGHT;
+        }
+        return HorizontalTextAlignEnum.LEFT;
     }
 
     private byte[] export(JasperPrint print, LabelOutputFormat format) throws JRException {

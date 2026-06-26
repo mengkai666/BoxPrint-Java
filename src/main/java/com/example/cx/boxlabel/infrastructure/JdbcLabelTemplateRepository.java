@@ -98,8 +98,9 @@ public class JdbcLabelTemplateRepository implements LabelTemplateRepository {
         for (LabelTemplateElement element : elements) {
             jdbcTemplate.update(
                     "INSERT INTO LP_LABEL_TEMPLATE_ELEMENT (element_id, template_code, sort_order, element_type, " +
-                            "text_value, field_name, left_mm, top_mm, width_mm, height_mm, font_size, bold) " +
-                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            "text_value, field_name, left_mm, top_mm, width_mm, height_mm, font_size, bold, " +
+                            "text_align, element_locked, visible_when_field, visible_when_operator, visible_when_value) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     element.getId(),
                     templateCode,
                     element.getSortOrder(),
@@ -111,7 +112,12 @@ public class JdbcLabelTemplateRepository implements LabelTemplateRepository {
                     element.getWidthMm(),
                     element.getHeightMm(),
                     element.getFontSize(),
-                    element.isBold()
+                    element.isBold(),
+                    element.getTextAlign(),
+                    element.isLocked(),
+                    element.getVisibleWhenField(),
+                    element.getVisibleWhenOperator(),
+                    element.getVisibleWhenValue()
             );
         }
     }
@@ -154,7 +160,8 @@ public class JdbcLabelTemplateRepository implements LabelTemplateRepository {
     private List<LabelTemplateElement> findElements(String templateCode) {
         return jdbcTemplate.query(
                 "SELECT element_id, sort_order, element_type, text_value, field_name, left_mm, top_mm, " +
-                        "width_mm, height_mm, font_size, bold " +
+                        "width_mm, height_mm, font_size, bold, text_align, element_locked, " +
+                        "visible_when_field, visible_when_operator, visible_when_value " +
                         "FROM LP_LABEL_TEMPLATE_ELEMENT WHERE template_code = ? ORDER BY sort_order, element_id",
                 elementMapper(),
                 templateCode
@@ -199,6 +206,11 @@ public class JdbcLabelTemplateRepository implements LabelTemplateRepository {
                 element.setHeightMm(rs.getDouble("height_mm"));
                 element.setFontSize(rs.getInt("font_size"));
                 element.setBold(rs.getBoolean("bold"));
+                element.setTextAlign(rs.getString("text_align"));
+                element.setLocked(rs.getBoolean("element_locked"));
+                element.setVisibleWhenField(rs.getString("visible_when_field"));
+                element.setVisibleWhenOperator(rs.getString("visible_when_operator"));
+                element.setVisibleWhenValue(rs.getString("visible_when_value"));
                 return element;
             }
         };

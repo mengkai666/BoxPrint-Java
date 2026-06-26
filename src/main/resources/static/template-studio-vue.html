@@ -1,0 +1,1610 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模板维护中心</title>
+    <script src="/vendor/vue.global.prod.js"></script>
+    <style>
+        :root {
+            --bg: #f4f6f8;
+            --panel: #ffffff;
+            --panel-soft: #f8fafc;
+            --ink: #17202a;
+            --muted: #64748b;
+            --line: #d8dee7;
+            --line-strong: #b6c0cc;
+            --accent: #0f766e;
+            --accent-strong: #0b5f59;
+            --accent-soft: #d9f3ef;
+            --warn: #b45309;
+            --danger: #b42318;
+            --shadow: 0 16px 36px rgba(21, 31, 44, 0.12);
+            --radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-width: 1180px;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+            font-size: 13px;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+        }
+
+        button {
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+            color: var(--ink);
+            min-height: 30px;
+            padding: 0 10px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            border-color: var(--line-strong);
+            background: #f8fafc;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        button.primary:hover {
+            background: var(--accent-strong);
+        }
+
+        button.danger {
+            border-color: #f4b4ad;
+            color: var(--danger);
+            background: #fff7f6;
+        }
+
+        button.text {
+            border-color: transparent;
+            background: transparent;
+            padding: 0 6px;
+        }
+
+        button:disabled,
+        input:disabled,
+        select:disabled,
+        textarea:disabled {
+            cursor: not-allowed;
+            opacity: 0.56;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: #fff;
+            color: var(--ink);
+            min-height: 30px;
+            padding: 6px 8px;
+            outline: none;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 64px;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+        }
+
+        [v-cloak] {
+            display: none;
+        }
+
+        .studio-shell {
+            min-height: 100dvh;
+            display: grid;
+            grid-template-rows: 56px minmax(0, 1fr);
+        }
+
+        .topbar {
+            display: grid;
+            grid-template-columns: 320px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 16px;
+            background: #111827;
+            color: #fff;
+            border-bottom: 1px solid #0b1220;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .brand-mark {
+            width: 30px;
+            height: 30px;
+            border-radius: 7px;
+            display: grid;
+            place-items: center;
+            background: var(--accent);
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+
+        .brand-title {
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .brand-meta {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .topbar-center {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .topbar-center .select-wrap {
+            max-width: 300px;
+            min-width: 220px;
+        }
+
+        .topbar select,
+        .topbar input {
+            background: #1f2937;
+            color: #fff;
+            border-color: #384252;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 28px;
+            border-radius: 999px;
+            padding: 0 10px;
+            color: #d1d5db;
+            background: #1f2937;
+            border: 1px solid #374151;
+            white-space: nowrap;
+        }
+
+        .status-pill.ok {
+            color: #bbf7d0;
+            border-color: #166534;
+        }
+
+        .status-pill.error {
+            color: #fecaca;
+            border-color: #991b1b;
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 300px minmax(560px, 1fr) 340px;
+            min-height: 0;
+        }
+
+        .side-panel,
+        .inspector-panel {
+            min-height: 0;
+            overflow: auto;
+            background: var(--panel);
+            border-right: 1px solid var(--line);
+        }
+
+        .inspector-panel {
+            border-right: none;
+            border-left: 1px solid var(--line);
+        }
+
+        .panel-section {
+            padding: 14px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .section-title small {
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .template-list,
+        .field-list,
+        .layer-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .template-card,
+        .field-card,
+        .layer-row {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: #fff;
+            padding: 9px;
+            cursor: pointer;
+        }
+
+        .template-card.active,
+        .field-card.active,
+        .layer-row.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.10);
+        }
+
+        .template-card .name,
+        .field-card .name,
+        .layer-row .name {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .meta-line {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid var(--line);
+            background: var(--panel-soft);
+            color: var(--muted);
+            border-radius: 999px;
+            min-height: 20px;
+            padding: 0 7px;
+            white-space: nowrap;
+        }
+
+        .tag.ok {
+            border-color: #a7f3d0;
+            background: #ecfdf5;
+            color: #047857;
+        }
+
+        .tag.warn {
+            border-color: #fde68a;
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .tag.bad {
+            border-color: #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .field-card .sample {
+            margin-top: 6px;
+            color: #334155;
+            line-height: 1.35;
+            max-height: 36px;
+            overflow: hidden;
+        }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .tool-grid button {
+            justify-content: center;
+            min-height: 34px;
+        }
+
+        .editor-main {
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            background: #eef2f6;
+        }
+
+        .editor-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--line);
+            background: #fff;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-group .divider {
+            width: 1px;
+            height: 24px;
+            background: var(--line);
+            margin: 0 2px;
+        }
+
+        .canvas-stage {
+            min-height: 0;
+            overflow: auto;
+            padding: 22px;
+        }
+
+        .canvas-wrap {
+            width: max-content;
+            min-width: 100%;
+            min-height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .template-canvas {
+            position: relative;
+            flex: none;
+            background:
+                    linear-gradient(#e5e7eb 1px, transparent 1px),
+                    linear-gradient(90deg, #e5e7eb 1px, transparent 1px),
+                    #fff;
+            background-size: calc(var(--px-mm) * 5) calc(var(--px-mm) * 5);
+            box-shadow: var(--shadow);
+            border: 1px solid #cbd5e1;
+            touch-action: none;
+        }
+
+        .canvas-empty {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: var(--muted);
+            pointer-events: none;
+        }
+
+        .canvas-element {
+            position: absolute;
+            border: 1px solid rgba(15, 23, 42, 0.34);
+            background: rgba(255, 255, 255, 0.82);
+            color: #17202a;
+            overflow: hidden;
+            cursor: move;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .canvas-element.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.18);
+            z-index: 50;
+        }
+
+        .canvas-element.locked {
+            cursor: default;
+            background: rgba(241, 245, 249, 0.84);
+        }
+
+        .canvas-element.hidden-by-condition {
+            opacity: 0.45;
+            border-style: dashed;
+        }
+
+        .element-text {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: var(--text-justify, flex-start);
+            padding: 1px 3px;
+            white-space: pre-wrap;
+            line-height: 1.12;
+        }
+
+        .element-box {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            place-items: center;
+            color: #475569;
+            font-size: 11px;
+            text-align: center;
+            padding: 3px;
+        }
+
+        .canvas-element.barcode .element-box {
+            background:
+                    repeating-linear-gradient(90deg, #111827 0 2px, transparent 2px 5px),
+                    #fff;
+            color: transparent;
+        }
+
+        .canvas-element.qrcode .element-box {
+            background:
+                    linear-gradient(90deg, #111827 8px, transparent 8px),
+                    linear-gradient(#111827 8px, transparent 8px),
+                    repeating-linear-gradient(45deg, #111827 0 2px, #fff 2px 4px);
+            background-size: 18px 18px, 18px 18px, 8px 8px;
+            color: transparent;
+        }
+
+        .canvas-element.line {
+            background: transparent;
+            border: none;
+            overflow: visible;
+        }
+
+        .canvas-element.line::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            border-top: 2px solid #111827;
+        }
+
+        .canvas-element.rectangle {
+            background: transparent;
+            border: 2px solid #111827;
+        }
+
+        .element-badge {
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            max-width: calc(100% - 4px);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            background: rgba(17, 24, 39, 0.82);
+            color: #fff;
+            border-radius: 4px;
+            padding: 1px 4px;
+            font-size: 10px;
+            pointer-events: none;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 9px;
+            height: 9px;
+            border-radius: 3px;
+            background: #fff;
+            border: 1px solid var(--accent);
+            z-index: 80;
+        }
+
+        .resize-right {
+            right: -5px;
+            top: calc(50% - 5px);
+            cursor: ew-resize;
+        }
+
+        .resize-bottom {
+            left: calc(50% - 5px);
+            bottom: -5px;
+            cursor: ns-resize;
+        }
+
+        .resize-bottom-right {
+            right: -5px;
+            bottom: -5px;
+            cursor: nwse-resize;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .form-grid.three {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .form-row {
+            display: grid;
+            gap: 5px;
+        }
+
+        .form-row label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .inline-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .segmented {
+            display: inline-grid;
+            grid-auto-flow: column;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .segmented button {
+            border: none;
+            border-radius: 0;
+            min-width: 38px;
+        }
+
+        .segmented button.active {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .inspector-empty {
+            padding: 26px 14px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .condition-builder {
+            display: grid;
+            gap: 10px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 10px;
+            background: var(--panel-soft);
+        }
+
+        .preview-box {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: #fff;
+            min-height: 180px;
+            display: grid;
+            place-items: center;
+        }
+
+        .preview-box img,
+        .preview-box iframe {
+            width: 100%;
+            min-height: 220px;
+            border: none;
+            object-fit: contain;
+            background: #fff;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .field-count {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .busy-cover {
+            position: fixed;
+            inset: 56px 0 0 0;
+            display: grid;
+            place-items: center;
+            background: rgba(244, 246, 248, 0.58);
+            z-index: 200;
+        }
+
+        .busy-box {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: #fff;
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+        }
+    </style>
+</head>
+<body>
+<div id="vue-template-studio" class="studio-shell" data-editor-shortcuts="arrows-delete-save-preview" v-cloak>
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-mark">T</div>
+            <div>
+                <div class="brand-title">模板维护中心</div>
+                <div class="brand-meta">Vue 可视化报表编辑器</div>
+            </div>
+        </div>
+        <div class="topbar-center">
+            <div class="select-wrap">
+                <select v-model="selectedTemplateCode" @change="selectTemplate(selectedTemplateCode)">
+                    <option v-for="template in editableTemplates" :key="template.code" :value="template.code">
+                        {{ template.name }} · {{ template.code }}
+                    </option>
+                </select>
+            </div>
+            <span class="status-pill" :class="statusType">{{ statusText }}</span>
+            <span class="status-pill" v-if="activeTemplate">
+                {{ activeTemplate.pageWidthMm }} x {{ activeTemplate.pageHeightMm }}mm · {{ elementList.length }} 项
+            </span>
+        </div>
+        <div class="top-actions">
+            <button type="button" @click="reloadAll" :disabled="busy">刷新</button>
+            <button type="button" class="primary" @click="saveElements" :disabled="!activeTemplate || busy">保存</button>
+            <button type="button" class="primary" @click="saveAndPreview" :disabled="!activeTemplate || busy">保存预览</button>
+            <a href="/print-workbench" style="color:#d1d5db;text-decoration:none;">打印工作台</a>
+        </div>
+    </header>
+
+    <main class="workspace">
+        <aside class="side-panel">
+            <section class="panel-section">
+                <div class="section-title">
+                    <span>模板</span>
+                    <small>{{ editableTemplates.length }} 个</small>
+                </div>
+                <input v-model.trim="templateKeyword" type="search" placeholder="搜索模板">
+                <div class="template-list" style="margin-top:10px;">
+                    <article v-for="template in filteredTemplates"
+                             :key="template.code"
+                             class="template-card"
+                             :class="{active: template.code === selectedTemplateCode}"
+                             @click="selectTemplate(template.code)">
+                        <div class="name">
+                            <span>{{ template.name }}</span>
+                            <span class="tag" :class="template.status === 'ACTIVE' ? 'ok' : 'warn'">{{ template.status }}</span>
+                        </div>
+                        <div class="meta-line">
+                            <span>{{ template.code }}</span>
+                            <span>{{ template.engine }}</span>
+                            <span>{{ template.pageWidthMm }} x {{ template.pageHeightMm }}mm</span>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="panel-section">
+                <div class="section-title">
+                    <span>组件</span>
+                    <small>添加到画布</small>
+                </div>
+                <div class="tool-grid">
+                    <button type="button" @click="addElement('STATIC_TEXT')">文本</button>
+                    <button type="button" @click="addElement('FIELD_TEXT')">字段值</button>
+                    <button type="button" @click="addElement('BARCODE')">条码</button>
+                    <button type="button" @click="addElement('QRCODE')">二维码</button>
+                    <button type="button" @click="addElement('LOGO')">Logo</button>
+                    <button type="button" @click="addElement('LINE')">线条</button>
+                    <button type="button" @click="addElement('RECTANGLE')">矩形</button>
+                </div>
+            </section>
+
+            <section class="panel-section">
+                <div class="section-title">
+                    <span>样例产品</span>
+                    <small>{{ sampleProductId || '未加载' }}</small>
+                </div>
+                <div class="inline-row">
+                    <input v-model.trim="sampleProductId" type="text" placeholder="ProductConfigId">
+                    <button type="button" @click="loadSampleFieldSources" :disabled="busy">加载</button>
+                </div>
+                <div class="meta-line" v-if="sampleDetail">
+                    <span>{{ sampleDetail.inventoryName }}</span>
+                    <span>{{ sampleDetail.brandName }}</span>
+                </div>
+            </section>
+
+            <section class="panel-section">
+                <div class="section-title">
+                    <span>字段库</span>
+                    <small class="field-count">{{ filteredFieldSources.length }} / {{ fieldSources.length }}</small>
+                </div>
+                <input v-model.trim="fieldKeyword" type="search" placeholder="搜索中文名或字段名">
+                <div class="field-list" style="margin-top:10px;">
+                    <article v-for="field in limitedFieldSources"
+                             :key="field.fieldName"
+                             class="field-card"
+                             :class="{active: selectedElement && selectedElement.fieldName === field.fieldName}"
+                             @click="addOrBindField(field)">
+                        <div class="name">
+                            <span>{{ field.displayName || field.fieldName }}</span>
+                            <span class="tag" :class="fieldStatusClass(field)">{{ field.statusText || field.fieldStatus || 'OK' }}</span>
+                        </div>
+                        <div class="meta-line">
+                            <span>{{ field.fieldName }}</span>
+                            <span>{{ field.category }}</span>
+                        </div>
+                        <div class="sample">{{ field.value || '空值' }}</div>
+                    </article>
+                </div>
+            </section>
+        </aside>
+
+        <section class="editor-main">
+            <div class="editor-toolbar">
+                <div class="toolbar-group">
+                    <button type="button" @click="duplicateSelected" :disabled="!selectedElement">复制</button>
+                    <button type="button" class="danger" @click="deleteSelected" :disabled="!selectedElement">删除</button>
+                    <span class="divider"></span>
+                    <button type="button" @click="moveLayer(-1)" :disabled="!selectedElement">下移</button>
+                    <button type="button" @click="moveLayer(1)" :disabled="!selectedElement">上移</button>
+                    <span class="divider"></span>
+                    <button type="button" @click="alignSelected('left')" :disabled="!selectedElement">左齐</button>
+                    <button type="button" @click="alignSelected('center')" :disabled="!selectedElement">居中</button>
+                    <button type="button" @click="alignSelected('right')" :disabled="!selectedElement">右齐</button>
+                </div>
+                <div class="toolbar-group">
+                    <span class="muted">缩放</span>
+                    <input v-model.number="zoom" type="range" min="3" max="8" step="0.5" style="width:130px;">
+                    <span class="tag">{{ zoom }} px/mm</span>
+                </div>
+            </div>
+
+            <div class="canvas-stage">
+                <div class="canvas-wrap">
+                    <div v-if="activeTemplate"
+                         class="template-canvas"
+                         ref="canvas"
+                         :style="canvasStyle"
+                         @pointerdown.self="clearSelection">
+                        <div v-if="!elementList.length" class="canvas-empty">空模板</div>
+                        <div v-for="element in elementList"
+                             :key="element.id"
+                             class="canvas-element"
+                             :class="elementClass(element)"
+                             :style="elementStyle(element)"
+                             @pointerdown.stop="beginElementDrag($event, element.id)"
+                             @mousedown.stop="beginElementMouseDrag($event, element.id)">
+                            <span v-if="showElementBadge(element)" class="element-badge">{{ elementBadge(element) }}</span>
+                            <div v-if="elementUsesText(element)" class="element-text">{{ elementDisplayText(element) }}</div>
+                            <div v-else-if="element.type !== 'LINE' && element.type !== 'RECTANGLE'" class="element-box">{{ typeLabel(element.type) }}</div>
+                            <template v-if="selectedElement && selectedElement.id === element.id && !element.locked">
+                                <span class="resize-handle resize-right"
+                                      data-resize="right"
+                                      @pointerdown.stop="beginElementResize($event, element.id, 'right')"
+                                      @mousedown.stop="beginElementMouseResize($event, element.id, 'right')"></span>
+                                <span class="resize-handle resize-bottom"
+                                      data-resize="bottom"
+                                      @pointerdown.stop="beginElementResize($event, element.id, 'bottom')"
+                                      @mousedown.stop="beginElementMouseResize($event, element.id, 'bottom')"></span>
+                                <span class="resize-handle resize-bottom-right"
+                                      data-resize="bottom-right"
+                                      @pointerdown.stop="beginElementResize($event, element.id, 'bottom-right')"
+                                      @mousedown.stop="beginElementMouseResize($event, element.id, 'bottom-right')"></span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <aside class="inspector-panel">
+            <section class="panel-section">
+                <div class="section-title">
+                    <span>图层</span>
+                    <small>{{ selectedElement ? selectedElement.type : '未选中' }}</small>
+                </div>
+                <div class="layer-list">
+                    <div v-for="element in reversedElementList"
+                         :key="element.id"
+                         class="layer-row"
+                         :class="{active: selectedElement && selectedElement.id === element.id}"
+                         @click="selectElement(element.id)">
+                        <div class="name">
+                            <span>{{ elementTitle(element) }}</span>
+                            <span class="tag">{{ element.sortOrder }}</span>
+                        </div>
+                        <div class="meta-line">
+                            <span>{{ typeLabel(element.type) }}</span>
+                            <span>{{ element.leftMm }} / {{ element.topMm }}</span>
+                            <span v-if="element.locked">锁定</span>
+                            <span v-if="element.visibleWhenField">条件</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel-section" v-if="selectedElement">
+                <div class="section-title">
+                    <span>属性</span>
+                    <small>{{ selectedElement.id }}</small>
+                </div>
+                <div class="form-grid">
+                    <div class="form-row">
+                        <label>类型</label>
+                        <select v-model="selectedElement.type" @change="markDirty">
+                            <option value="STATIC_TEXT">文本</option>
+                            <option value="FIELD_TEXT">字段值</option>
+                            <option value="BARCODE">条码</option>
+                            <option value="QRCODE">二维码</option>
+                            <option value="LOGO">Logo</option>
+                            <option value="LINE">线条</option>
+                            <option value="RECTANGLE">矩形</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>锁定</label>
+                        <select v-model="selectedElement.locked" @change="markDirty">
+                            <option :value="false">可编辑</option>
+                            <option :value="true">锁定</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-grid" style="margin-top:10px;">
+                    <div class="form-row">
+                        <label>X mm</label>
+                        <input v-model.number="selectedElement.leftMm" type="number" step="0.5" @input="clampSelected">
+                    </div>
+                    <div class="form-row">
+                        <label>Y mm</label>
+                        <input v-model.number="selectedElement.topMm" type="number" step="0.5" @input="clampSelected">
+                    </div>
+                    <div class="form-row">
+                        <label>宽 mm</label>
+                        <input v-model.number="selectedElement.widthMm" type="number" step="0.5" @input="clampSelected">
+                    </div>
+                    <div class="form-row">
+                        <label>高 mm</label>
+                        <input v-model.number="selectedElement.heightMm" type="number" step="0.5" @input="clampSelected">
+                    </div>
+                </div>
+
+                <div v-if="selectedElement.type === 'FIELD_TEXT' || selectedElement.type === 'BARCODE' || selectedElement.type === 'QRCODE'" class="form-row" style="margin-top:10px;">
+                    <label>字段值绑定</label>
+                    <select v-model="selectedElement.fieldName" @change="markDirty">
+                        <option value="">未绑定</option>
+                        <option v-for="field in fieldSources" :key="field.fieldName" :value="field.fieldName">
+                            {{ field.displayName || field.fieldName }} · {{ field.fieldName }}
+                        </option>
+                    </select>
+                </div>
+
+                <div v-if="selectedElement.type === 'STATIC_TEXT'" class="form-row" style="margin-top:10px;">
+                    <label>文本</label>
+                    <textarea v-model="selectedElement.text" @input="markDirty"></textarea>
+                </div>
+
+                <div v-if="elementUsesText(selectedElement)" class="form-grid" style="margin-top:10px;">
+                    <div class="form-row">
+                        <label>字号</label>
+                        <input v-model.number="selectedElement.fontSize" type="number" min="5" max="48" step="1" @input="markDirty">
+                    </div>
+                    <div class="form-row">
+                        <label>字重</label>
+                        <select v-model="selectedElement.bold" @change="markDirty">
+                            <option :value="false">常规</option>
+                            <option :value="true">加粗</option>
+                        </select>
+                    </div>
+                    <div class="form-row" style="grid-column:1 / -1;">
+                        <label>对齐 textAlign</label>
+                        <div class="segmented">
+                            <button type="button" :class="{active: selectedElement.textAlign === 'left'}" @click="setTextAlign('left')">左</button>
+                            <button type="button" :class="{active: selectedElement.textAlign === 'center'}" @click="setTextAlign('center')">中</button>
+                            <button type="button" :class="{active: selectedElement.textAlign === 'right'}" @click="setTextAlign('right')">右</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel-section" v-if="selectedElement">
+                <div class="section-title">
+                    <span>条件显示</span>
+                    <small>{{ conditionPreview(selectedElement) }}</small>
+                </div>
+                <div class="condition-builder">
+                    <div class="form-row">
+                        <label>visibleWhenField</label>
+                        <select v-model="selectedElement.visibleWhenField" @change="markDirty">
+                            <option value="">始终显示</option>
+                            <option v-for="field in fieldSources" :key="field.fieldName" :value="field.fieldName">
+                                {{ field.displayName || field.fieldName }} · {{ field.fieldName }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-row">
+                            <label>visibleWhenOperator</label>
+                            <select v-model="selectedElement.visibleWhenOperator" @change="markDirty">
+                                <option value="">无条件</option>
+                                <option value="empty">为空</option>
+                                <option value="notEmpty">不为空</option>
+                                <option value="equals">等于</option>
+                                <option value="notEquals">不等于</option>
+                                <option value="contains">包含</option>
+                                <option value="startsWith">开头为</option>
+                                <option value="endsWith">结尾为</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>visibleWhenValue</label>
+                            <input v-model="selectedElement.visibleWhenValue" type="text" @input="markDirty">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel-section" v-if="!selectedElement">
+                <div class="inspector-empty">选择一个画布组件后编辑属性。</div>
+            </section>
+
+            <section class="panel-section">
+                <div class="section-title">
+                    <span>预览</span>
+                    <small>{{ previewFormat }}</small>
+                </div>
+                <div class="form-grid">
+                    <div class="form-row">
+                        <label>产品</label>
+                        <input v-model.trim="previewProductId" type="text">
+                    </div>
+                    <div class="form-row">
+                        <label>格式</label>
+                        <select v-model="previewFormat">
+                            <option value="PNG">PNG</option>
+                            <option value="PDF">PDF</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>生产日期</label>
+                        <input v-model="productionDate" type="date">
+                    </div>
+                    <div class="form-row">
+                        <label>班次</label>
+                        <input v-model.trim="shift" type="text">
+                    </div>
+                </div>
+                <div class="inline-row" style="margin-top:10px;">
+                    <button type="button" class="primary" @click="saveAndPreview" :disabled="!activeTemplate || busy">生成预览</button>
+                    <a v-if="previewUrl" :href="previewUrl" target="_blank">打开文件</a>
+                </div>
+                <div class="preview-box" style="margin-top:10px;">
+                    <img v-if="previewUrl && previewFormat === 'PNG'" :src="previewUrl" alt="模板预览">
+                    <iframe v-else-if="previewUrl" :src="previewUrl" title="模板预览"></iframe>
+                    <span v-else class="muted">暂无预览</span>
+                </div>
+            </section>
+        </aside>
+    </main>
+
+    <div v-if="busy" class="busy-cover">
+        <div class="busy-box">{{ busyText }}</div>
+    </div>
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    let studioVm = null;
+
+    function beginElementDrag(event, elementId) {
+        if (studioVm) studioVm.beginElementDrag(event, elementId);
+    }
+
+    function beginElementResize(event, elementId, mode) {
+        if (studioVm) studioVm.beginElementResize(event, elementId, mode);
+    }
+
+    createApp({
+        data() {
+            return {
+                templates: [],
+                selectedTemplateCode: '',
+                selectedElementId: '',
+                templateKeyword: '',
+                fieldKeyword: '',
+                fieldSources: [],
+                sampleDetail: null,
+                sampleProductId: 'DEMO-BOX-001',
+                previewProductId: 'DEMO-BOX-001',
+                productionDate: new Date().toISOString().slice(0, 10),
+                shift: 'A',
+                previewFormat: 'PNG',
+                previewUrl: '',
+                zoom: 5,
+                busy: false,
+                busyText: '处理中',
+                statusText: '就绪',
+                statusType: '',
+                dirty: false
+            };
+        },
+        computed: {
+            editableTemplates() {
+                return this.templates.filter((item) => item.engine === 'CONFIG_LAYOUT');
+            },
+            filteredTemplates() {
+                const keyword = this.templateKeyword.toLowerCase();
+                if (!keyword) return this.editableTemplates;
+                return this.editableTemplates.filter((item) =>
+                    [item.code, item.name, item.status, item.labelType].some((value) =>
+                        String(value || '').toLowerCase().indexOf(keyword) >= 0
+                    )
+                );
+            },
+            activeTemplate() {
+                return this.templates.find((item) => item.code === this.selectedTemplateCode) || null;
+            },
+            elementList() {
+                if (!this.activeTemplate || !Array.isArray(this.activeTemplate.elements)) return [];
+                return this.activeTemplate.elements.slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+            },
+            reversedElementList() {
+                return this.elementList.slice().reverse();
+            },
+            selectedElement() {
+                if (!this.selectedElementId) return null;
+                return this.elementList.find((item) => item.id === this.selectedElementId) || null;
+            },
+            filteredFieldSources() {
+                const keyword = this.fieldKeyword.toLowerCase();
+                if (!keyword) return this.fieldSources;
+                return this.fieldSources.filter((field) =>
+                    [field.displayName, field.fieldName, field.category, field.value, field.sourceType, field.fieldStatus].some((value) =>
+                        String(value || '').toLowerCase().indexOf(keyword) >= 0
+                    )
+                );
+            },
+            limitedFieldSources() {
+                return this.filteredFieldSources.slice(0, 70);
+            },
+            canvasStyle() {
+                const template = this.activeTemplate || {pageWidthMm: 120, pageHeightMm: 80};
+                return {
+                    '--px-mm': this.zoom + 'px',
+                    width: (Number(template.pageWidthMm || 120) * this.zoom) + 'px',
+                    height: (Number(template.pageHeightMm || 80) * this.zoom) + 'px'
+                };
+            }
+        },
+        mounted() {
+            studioVm = this;
+            window.addEventListener('keydown', this.handleEditorKeydown);
+            this.reloadAll();
+        },
+        beforeUnmount() {
+            window.removeEventListener('keydown', this.handleEditorKeydown);
+        },
+        methods: {
+            async api(path, options) {
+                const response = await fetch(path, Object.assign({
+                    headers: {'Content-Type': 'application/json'}
+                }, options || {}));
+                if (!response.ok) {
+                    const message = await response.text();
+                    throw new Error(message || response.statusText);
+                }
+                return response.json();
+            },
+            async reloadAll() {
+                await this.runBusy('加载模板', async () => {
+                    await this.loadTemplates();
+                    await this.loadSampleFieldSources();
+                });
+            },
+            async loadTemplates() {
+                const data = await this.api('/api/label-templates');
+                this.templates = (data.items || []).map(this.normalizeTemplate);
+                const preferred = this.templates.find((item) => item.code === this.selectedTemplateCode)
+                    || this.templates.find((item) => item.code === 'box-config-standard')
+                    || this.templates.find((item) => item.engine === 'CONFIG_LAYOUT')
+                    || this.templates[0];
+                if (preferred) this.selectTemplate(preferred.code, true);
+                this.setStatus('模板已加载', 'ok');
+            },
+            async loadSampleFieldSources() {
+                const productId = this.sampleProductId || 'DEMO-BOX-001';
+                const detail = await this.api('/api/name-conversions/' + encodeURIComponent(productId));
+                this.sampleDetail = detail;
+                this.sampleProductId = detail.productConfigId || productId;
+                this.previewProductId = this.previewProductId || this.sampleProductId;
+                this.fieldSources = (detail.fieldSources || []).filter((field) => field.fieldName);
+                this.setStatus('字段样例已加载', 'ok');
+            },
+            normalizeTemplate(template) {
+                const copy = Object.assign({}, template);
+                copy.elements = (copy.elements || []).map(this.normalizeElement);
+                return copy;
+            },
+            normalizeElement(element, index) {
+                const type = String(element.type || 'STATIC_TEXT').toUpperCase();
+                return Object.assign({
+                    id: this.newId(),
+                    sortOrder: index + 1,
+                    type: type,
+                    text: '',
+                    fieldName: '',
+                    leftMm: 4,
+                    topMm: 4,
+                    widthMm: 30,
+                    heightMm: 8,
+                    fontSize: 10,
+                    bold: false,
+                    textAlign: 'left',
+                    locked: false,
+                    visibleWhenField: '',
+                    visibleWhenOperator: '',
+                    visibleWhenValue: ''
+                }, element, {
+                    type: type,
+                    textAlign: this.normalizeTextAlign(element.textAlign),
+                    visibleWhenField: element.visibleWhenField || '',
+                    visibleWhenOperator: element.visibleWhenOperator || '',
+                    visibleWhenValue: element.visibleWhenValue || ''
+                });
+            },
+            selectTemplate(code, keepSelection) {
+                this.selectedTemplateCode = code;
+                if (!keepSelection) this.selectedElementId = '';
+                this.previewUrl = '';
+                this.dirty = false;
+            },
+            setStatus(text, type) {
+                this.statusText = text;
+                this.statusType = type || '';
+            },
+            async runBusy(text, action) {
+                this.busy = true;
+                this.busyText = text;
+                try {
+                    return await action();
+                } catch (error) {
+                    this.setStatus(error.message || '操作失败', 'error');
+                    throw error;
+                } finally {
+                    this.busy = false;
+                }
+            },
+            markDirty() {
+                this.dirty = true;
+                this.previewUrl = '';
+                this.setStatus('有未保存修改', '');
+            },
+            newId() {
+                return 'element-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+            },
+            typeLabel(type) {
+                return {
+                    STATIC_TEXT: '文本',
+                    FIELD_TEXT: '字段值',
+                    BARCODE: '条码',
+                    QRCODE: '二维码',
+                    LOGO: 'Logo',
+                    LINE: '线条',
+                    RECTANGLE: '矩形'
+                }[type] || type;
+            },
+            elementTitle(element) {
+                if (element.type === 'STATIC_TEXT') return element.text || '文本';
+                if (element.fieldName) return this.fieldLabel(element.fieldName);
+                return this.typeLabel(element.type);
+            },
+            fieldLabel(fieldName) {
+                const field = this.fieldSources.find((item) => item.fieldName === fieldName);
+                if (!field) return fieldName || '未绑定';
+                return (field.displayName || field.fieldName) + ' · ' + field.fieldName;
+            },
+            fieldValue(fieldName) {
+                const field = this.fieldSources.find((item) => item.fieldName === fieldName);
+                return field ? (field.value || '') : '';
+            },
+            fieldStatusClass(field) {
+                if (field.fieldStatus === 'MISSING') return 'bad';
+                if (field.fieldStatus === 'FALLBACK') return 'warn';
+                return 'ok';
+            },
+            addElement(type) {
+                if (!this.activeTemplate) return;
+                const pageWidth = Number(this.activeTemplate.pageWidthMm || 120);
+                const pageHeight = Number(this.activeTemplate.pageHeightMm || 80);
+                const defaults = this.defaultElementSize(type);
+                const element = this.normalizeElement({
+                    id: this.newId(),
+                    sortOrder: this.elementList.length + 1,
+                    type: type,
+                    text: type === 'STATIC_TEXT' ? '文本' : '',
+                    fieldName: type === 'FIELD_TEXT' ? (this.fieldSources[0] && this.fieldSources[0].fieldName) || '' : '',
+                    leftMm: this.snap(Math.max(2, (pageWidth - defaults.widthMm) / 2)),
+                    topMm: this.snap(Math.max(2, (pageHeight - defaults.heightMm) / 2)),
+                    widthMm: defaults.widthMm,
+                    heightMm: defaults.heightMm,
+                    fontSize: type === 'STATIC_TEXT' ? 11 : 9,
+                    textAlign: type === 'STATIC_TEXT' ? 'left' : 'left'
+                }, this.elementList.length);
+                this.activeTemplate.elements.push(element);
+                this.renumberElements();
+                this.selectElement(element.id);
+                this.markDirty();
+            },
+            defaultElementSize(type) {
+                if (type === 'BARCODE') return {widthMm: 44, heightMm: 14};
+                if (type === 'QRCODE') return {widthMm: 22, heightMm: 22};
+                if (type === 'LOGO') return {widthMm: 24, heightMm: 16};
+                if (type === 'LINE') return {widthMm: 48, heightMm: 1};
+                if (type === 'RECTANGLE') return {widthMm: 36, heightMm: 18};
+                return {widthMm: 42, heightMm: 8};
+            },
+            addOrBindField(field) {
+                if (this.selectedElement && ['FIELD_TEXT', 'BARCODE', 'QRCODE'].indexOf(this.selectedElement.type) >= 0) {
+                    this.selectedElement.fieldName = field.fieldName;
+                    this.markDirty();
+                    return;
+                }
+                this.addElement('FIELD_TEXT');
+                if (this.selectedElement) {
+                    this.selectedElement.fieldName = field.fieldName;
+                    this.markDirty();
+                }
+            },
+            selectElement(id) {
+                this.selectedElementId = id;
+            },
+            clearSelection() {
+                this.selectedElementId = '';
+            },
+            elementUsesText(element) {
+                return element && (element.type === 'STATIC_TEXT' || element.type === 'FIELD_TEXT');
+            },
+            elementDisplayText(element) {
+                if (element.type === 'FIELD_TEXT') {
+                    return this.fieldValue(element.fieldName) || this.fieldLabel(element.fieldName);
+                }
+                return element.text || '';
+            },
+            elementClass(element) {
+                return {
+                    selected: this.selectedElement && this.selectedElement.id === element.id,
+                    locked: element.locked,
+                    line: element.type === 'LINE',
+                    rectangle: element.type === 'RECTANGLE',
+                    barcode: element.type === 'BARCODE',
+                    qrcode: element.type === 'QRCODE',
+                    'hidden-by-condition': !this.isVisibleInSample(element)
+                };
+            },
+            elementStyle(element) {
+                return {
+                    left: (Number(element.leftMm || 0) * this.zoom) + 'px',
+                    top: (Number(element.topMm || 0) * this.zoom) + 'px',
+                    width: (Math.max(0.5, Number(element.widthMm || 1)) * this.zoom) + 'px',
+                    height: (Math.max(0.5, Number(element.heightMm || 1)) * this.zoom) + 'px',
+                    zIndex: Number(element.sortOrder || 1),
+                    fontSize: Math.max(5, Number(element.fontSize || 10)) + 'px',
+                    fontWeight: element.bold ? '700' : '400',
+                    textAlign: this.normalizeTextAlign(element.textAlign),
+                    '--text-justify': this.textJustify(element.textAlign)
+                };
+            },
+            textJustify(align) {
+                if (align === 'center') return 'center';
+                if (align === 'right') return 'flex-end';
+                return 'flex-start';
+            },
+            showElementBadge(element) {
+                return ['BARCODE', 'QRCODE', 'LOGO'].indexOf(element.type) >= 0 || !this.isVisibleInSample(element);
+            },
+            elementBadge(element) {
+                if (!this.isVisibleInSample(element)) return '条件隐藏';
+                if (element.fieldName) return this.fieldLabel(element.fieldName);
+                return this.typeLabel(element.type);
+            },
+            beginElementMouseDrag(event, elementId) {
+                if (window.PointerEvent) return;
+                this.beginElementDrag(event, elementId);
+            },
+            beginElementDrag(event, elementId) {
+                if (event.button && event.button !== 0) return;
+                const element = this.elementById(elementId);
+                if (!element) return;
+                this.selectElement(elementId);
+                if (element.locked) return;
+                event.preventDefault();
+                const startX = event.clientX;
+                const startY = event.clientY;
+                const startLeft = Number(element.leftMm || 0);
+                const startTop = Number(element.topMm || 0);
+                const move = (moveEvent) => {
+                    const dx = (moveEvent.clientX - startX) / this.zoom;
+                    const dy = (moveEvent.clientY - startY) / this.zoom;
+                    element.leftMm = this.snap(this.clamp(startLeft + dx, 0, this.pageWidth() - Number(element.widthMm || 1)));
+                    element.topMm = this.snap(this.clamp(startTop + dy, 0, this.pageHeight() - Number(element.heightMm || 1)));
+                };
+                const up = () => {
+                    document.removeEventListener('pointermove', move);
+                    document.removeEventListener('pointerup', up);
+                    document.removeEventListener('mousemove', move);
+                    document.removeEventListener('mouseup', up);
+                    this.markDirty();
+                };
+                document.addEventListener(event.type === 'mousedown' ? 'mousemove' : 'pointermove', move);
+                document.addEventListener(event.type === 'mousedown' ? 'mouseup' : 'pointerup', up, {once: true});
+            },
+            beginElementMouseResize(event, elementId, mode) {
+                if (window.PointerEvent) return;
+                this.beginElementResize(event, elementId, mode);
+            },
+            beginElementResize(event, elementId, mode) {
+                const element = this.elementById(elementId);
+                if (!element || element.locked) return;
+                this.selectElement(elementId);
+                event.preventDefault();
+                const startX = event.clientX;
+                const startY = event.clientY;
+                const startWidth = Number(element.widthMm || 1);
+                const startHeight = Number(element.heightMm || 1);
+                const minWidth = element.type === 'LINE' ? 4 : 2;
+                const minHeight = element.type === 'LINE' ? 0.5 : 2;
+                const move = (moveEvent) => {
+                    const dx = (moveEvent.clientX - startX) / this.zoom;
+                    const dy = (moveEvent.clientY - startY) / this.zoom;
+                    if (mode === 'right' || mode === 'bottom-right') {
+                        element.widthMm = this.snap(this.clamp(startWidth + dx, minWidth, this.pageWidth() - Number(element.leftMm || 0)));
+                    }
+                    if (mode === 'bottom' || mode === 'bottom-right') {
+                        element.heightMm = this.snap(this.clamp(startHeight + dy, minHeight, this.pageHeight() - Number(element.topMm || 0)));
+                    }
+                };
+                const up = () => {
+                    document.removeEventListener('pointermove', move);
+                    document.removeEventListener('pointerup', up);
+                    document.removeEventListener('mousemove', move);
+                    document.removeEventListener('mouseup', up);
+                    this.markDirty();
+                };
+                document.addEventListener(event.type === 'mousedown' ? 'mousemove' : 'pointermove', move);
+                document.addEventListener(event.type === 'mousedown' ? 'mouseup' : 'pointerup', up, {once: true});
+            },
+            clampSelected() {
+                if (!this.selectedElement) return;
+                const element = this.selectedElement;
+                element.widthMm = this.snap(this.clamp(Number(element.widthMm || 1), 0.5, this.pageWidth()));
+                element.heightMm = this.snap(this.clamp(Number(element.heightMm || 1), 0.5, this.pageHeight()));
+                element.leftMm = this.snap(this.clamp(Number(element.leftMm || 0), 0, this.pageWidth() - element.widthMm));
+                element.topMm = this.snap(this.clamp(Number(element.topMm || 0), 0, this.pageHeight() - element.heightMm));
+                this.markDirty();
+            },
+            setTextAlign(value) {
+                if (!this.selectedElement) return;
+                this.selectedElement.textAlign = this.normalizeTextAlign(value);
+                this.markDirty();
+            },
+            handleEditorKeydown(event) {
+                if (this.isFormInputTarget(event.target) || this.busy) return;
+                const key = event.key;
+                if ((event.ctrlKey || event.metaKey) && key.toLowerCase() === 's') {
+                    event.preventDefault();
+                    this.saveElements();
+                    return;
+                }
+                if ((event.ctrlKey || event.metaKey) && key === 'Enter') {
+                    event.preventDefault();
+                    this.saveAndPreview();
+                    return;
+                }
+                if (!this.selectedElement) return;
+                if (key === 'Delete' || key === 'Backspace') {
+                    event.preventDefault();
+                    this.deleteSelected();
+                    return;
+                }
+                if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(key) >= 0) {
+                    event.preventDefault();
+                    this.nudgeSelected(key, event.shiftKey ? 2.5 : 0.5);
+                }
+            },
+            isFormInputTarget(target) {
+                if (!target || !target.tagName) return false;
+                return ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].indexOf(target.tagName.toUpperCase()) >= 0
+                    || target.isContentEditable;
+            },
+            nudgeSelected(key, stepMm) {
+                if (!this.selectedElement || this.selectedElement.locked) return;
+                const element = this.selectedElement;
+                const dx = key === 'ArrowLeft' ? -stepMm : key === 'ArrowRight' ? stepMm : 0;
+                const dy = key === 'ArrowUp' ? -stepMm : key === 'ArrowDown' ? stepMm : 0;
+                element.leftMm = this.snap(this.clamp(Number(element.leftMm || 0) + dx, 0, this.pageWidth() - Number(element.widthMm || 1)));
+                element.topMm = this.snap(this.clamp(Number(element.topMm || 0) + dy, 0, this.pageHeight() - Number(element.heightMm || 1)));
+                this.markDirty();
+            },
+            duplicateSelected() {
+                if (!this.activeTemplate || !this.selectedElement) return;
+                const copy = this.normalizeElement(Object.assign({}, this.selectedElement, {
+                    id: this.newId(),
+                    leftMm: this.snap(Number(this.selectedElement.leftMm || 0) + 2),
+                    topMm: this.snap(Number(this.selectedElement.topMm || 0) + 2),
+                    sortOrder: this.elementList.length + 1
+                }), this.elementList.length);
+                this.activeTemplate.elements.push(copy);
+                this.renumberElements();
+                this.selectElement(copy.id);
+                this.markDirty();
+            },
+            deleteSelected() {
+                if (!this.activeTemplate || !this.selectedElement) return;
+                const id = this.selectedElement.id;
+                this.activeTemplate.elements = this.activeTemplate.elements.filter((item) => item.id !== id);
+                this.selectedElementId = '';
+                this.renumberElements();
+                this.markDirty();
+            },
+            moveLayer(delta) {
+                if (!this.activeTemplate || !this.selectedElement) return;
+                const ordered = this.elementList;
+                const index = ordered.findIndex((item) => item.id === this.selectedElement.id);
+                const next = this.clamp(index + delta, 0, ordered.length - 1);
+                if (index === next) return;
+                const item = ordered.splice(index, 1)[0];
+                ordered.splice(next, 0, item);
+                this.activeTemplate.elements = ordered;
+                this.renumberElements();
+                this.markDirty();
+            },
+            alignSelected(direction) {
+                if (!this.selectedElement) return;
+                const element = this.selectedElement;
+                if (direction === 'left') element.leftMm = 0;
+                if (direction === 'center') element.leftMm = this.snap((this.pageWidth() - Number(element.widthMm || 0)) / 2);
+                if (direction === 'right') element.leftMm = this.snap(this.pageWidth() - Number(element.widthMm || 0));
+                this.markDirty();
+            },
+            renumberElements() {
+                this.elementList.forEach((element, index) => {
+                    element.sortOrder = index + 1;
+                });
+            },
+            elementById(id) {
+                return this.elementList.find((item) => item.id === id);
+            },
+            pageWidth() {
+                return Number((this.activeTemplate && this.activeTemplate.pageWidthMm) || 120);
+            },
+            pageHeight() {
+                return Number((this.activeTemplate && this.activeTemplate.pageHeightMm) || 80);
+            },
+            snap(value) {
+                return Math.round(Number(value || 0) * 2) / 2;
+            },
+            clamp(value, min, max) {
+                return Math.max(min, Math.min(max, value));
+            },
+            normalizeTextAlign(value) {
+                return ['left', 'center', 'right'].indexOf(value) >= 0 ? value : 'left';
+            },
+            isVisibleInSample(element) {
+                const field = element.visibleWhenField;
+                const operator = element.visibleWhenOperator;
+                if (!field || !operator) return true;
+                const value = String(this.fieldValue(field) || '');
+                const expected = String(element.visibleWhenValue || '');
+                if (operator === 'empty') return value.length === 0;
+                if (operator === 'notEmpty') return value.length > 0;
+                if (operator === 'equals') return value === expected;
+                if (operator === 'notEquals') return value !== expected;
+                if (operator === 'contains') return value.indexOf(expected) >= 0;
+                if (operator === 'startsWith') return value.indexOf(expected) === 0;
+                if (operator === 'endsWith') return expected === '' || value.slice(-expected.length) === expected;
+                return true;
+            },
+            conditionPreview(element) {
+                return this.isVisibleInSample(element) ? '样例显示' : '样例隐藏';
+            },
+            normalizeForSave(element) {
+                return {
+                    id: element.id,
+                    sortOrder: element.sortOrder,
+                    type: element.type,
+                    text: element.text || '',
+                    fieldName: element.fieldName || '',
+                    leftMm: Number(element.leftMm || 0),
+                    topMm: Number(element.topMm || 0),
+                    widthMm: Number(element.widthMm || 0),
+                    heightMm: Number(element.heightMm || 0),
+                    fontSize: Number(element.fontSize || 10),
+                    bold: !!element.bold,
+                    textAlign: this.normalizeTextAlign(element.textAlign),
+                    locked: !!element.locked,
+                    visibleWhenField: element.visibleWhenField || '',
+                    visibleWhenOperator: element.visibleWhenOperator || '',
+                    visibleWhenValue: element.visibleWhenValue || ''
+                };
+            },
+            async saveElements() {
+                if (!this.activeTemplate) return;
+                await this.runBusy('保存模板元素', async () => {
+                    const payload = {
+                        elements: this.elementList.map(this.normalizeForSave)
+                    };
+                    const updated = await this.api('/api/label-templates/' + encodeURIComponent(this.activeTemplate.code) + '/elements', {
+                        method: 'PUT',
+                        body: JSON.stringify(payload)
+                    });
+                    this.replaceTemplate(updated);
+                    this.dirty = false;
+                    this.setStatus('保存完成', 'ok');
+                });
+            },
+            async saveAndPreview() {
+                if (!this.activeTemplate) return;
+                if (this.dirty) {
+                    await this.saveElements();
+                }
+                await this.runBusy('生成预览', async () => {
+                    const request = {
+                        productConfigId: this.previewProductId || this.sampleProductId || 'DEMO-BOX-001',
+                        productionDate: this.productionDate,
+                        shift: this.shift,
+                        labelType: this.activeTemplate.labelType || 'BOX',
+                        format: this.previewFormat
+                    };
+                    const data = await this.api('/api/label-templates/' + encodeURIComponent(this.activeTemplate.code) + '/preview', {
+                        method: 'POST',
+                        body: JSON.stringify(request)
+                    });
+                    this.previewUrl = data.previewUrl || '';
+                    this.setStatus('预览已生成', 'ok');
+                });
+            },
+            replaceTemplate(updated) {
+                const template = this.normalizeTemplate(updated);
+                const index = this.templates.findIndex((item) => item.code === template.code);
+                if (index >= 0) {
+                    this.templates.splice(index, 1, template);
+                } else {
+                    this.templates.push(template);
+                }
+                this.selectedTemplateCode = template.code;
+                if (this.selectedElementId && !template.elements.some((item) => item.id === this.selectedElementId)) {
+                    this.selectedElementId = '';
+                }
+            }
+        }
+    }).mount('#vue-template-studio');
+</script>
+</body>
+</html>

@@ -18,6 +18,6 @@ public class WebPageController {
 
     @GetMapping("/template-studio")
     public String templateStudio() {
-        return "forward:template-studio.html";
+        return "forward:template-studio-vue.html";
     }
 }

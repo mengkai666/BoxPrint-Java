@@ -74,15 +74,20 @@ class LabelPrintingPersistenceTest {
         mockMvc.perform(put("/api/label-templates/box-db-custom/elements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"elements\":["
-                                + "{\"type\":\"STATIC_TEXT\",\"text\":\"DB Custom Box\",\"leftMm\":4,\"topMm\":4,\"widthMm\":70,\"heightMm\":8,\"fontSize\":14},"
-                                + "{\"type\":\"FIELD_TEXT\",\"fieldName\":\"boxLabelName\",\"leftMm\":4,\"topMm\":14,\"widthMm\":90,\"heightMm\":8,\"fontSize\":12},"
+                                + "{\"type\":\"STATIC_TEXT\",\"text\":\"DB Custom Box\",\"leftMm\":4,\"topMm\":4,\"widthMm\":70,\"heightMm\":8,\"fontSize\":14,\"bold\":true,\"textAlign\":\"center\",\"locked\":true,"
+                                + "\"visibleWhenField\":\"brandName\",\"visibleWhenOperator\":\"equals\",\"visibleWhenValue\":\"QINRE\"},"
+                                + "{\"type\":\"FIELD_TEXT\",\"fieldName\":\"boxLabelName\",\"leftMm\":4,\"topMm\":14,\"widthMm\":90,\"heightMm\":8,\"fontSize\":12,\"textAlign\":\"right\"},"
                                 + "{\"type\":\"FIELD_TEXT\",\"fieldName\":\"packageSpec\",\"leftMm\":4,\"topMm\":24,\"widthMm\":90,\"heightMm\":7,\"fontSize\":10},"
                                 + "{\"type\":\"BARCODE\",\"leftMm\":4,\"topMm\":56,\"widthMm\":65,\"heightMm\":16},"
                                 + "{\"type\":\"QRCODE\",\"leftMm\":92,\"topMm\":48,\"widthMm\":22,\"heightMm\":22}"
                                 + "]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value("2"))
-                .andExpect(jsonPath("$.elements.length()").value(5));
+                .andExpect(jsonPath("$.elements.length()").value(5))
+                .andExpect(jsonPath("$.elements[0].locked").value(true))
+                .andExpect(jsonPath("$.elements[0].visibleWhenField").value("brandName"))
+                .andExpect(jsonPath("$.elements[0].visibleWhenOperator").value("equals"))
+                .andExpect(jsonPath("$.elements[0].visibleWhenValue").value("QINRE"));
 
         mockMvc.perform(put("/api/product-template-bindings/DEMO-BOX-001")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -129,6 +134,29 @@ class LabelPrintingPersistenceTest {
                 Integer.class,
                 "box-db-custom"
         )).isEqualTo(5);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT text_align FROM LP_LABEL_TEMPLATE_ELEMENT WHERE template_code = ? AND sort_order = 1",
+                String.class,
+                "box-db-custom"
+        )).isEqualTo("center");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT text_align FROM LP_LABEL_TEMPLATE_ELEMENT WHERE template_code = ? AND sort_order = 2",
+                String.class,
+                "box-db-custom"
+        )).isEqualTo("right");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT element_locked FROM LP_LABEL_TEMPLATE_ELEMENT WHERE template_code = ? AND sort_order = 1",
+                Boolean.class,
+                "box-db-custom"
+        )).isTrue();
+        Map<String, Object> condition = jdbcTemplate.queryForMap(
+                "SELECT visible_when_field, visible_when_operator, visible_when_value " +
+                        "FROM LP_LABEL_TEMPLATE_ELEMENT WHERE template_code = ? AND sort_order = 1",
+                "box-db-custom"
+        );
+        assertThat(condition.get("visible_when_field")).isEqualTo("brandName");
+        assertThat(condition.get("visible_when_operator")).isEqualTo("equals");
+        assertThat(condition.get("visible_when_value")).isEqualTo("QINRE");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT box_template_code FROM LP_PRODUCT_TEMPLATE_BINDING WHERE product_config_id = ?",
                 String.class,

@@ -262,6 +262,11 @@ public class BoxLabelTemplateService {
         copy.setHeightMm(positiveOrDefault(element.getHeightMm(), 6));
         copy.setFontSize(element.getFontSize() <= 0 ? 10 : element.getFontSize());
         copy.setBold(element.isBold());
+        copy.setTextAlign(normalizeTextAlign(element.getTextAlign()));
+        copy.setLocked(element.isLocked());
+        copy.setVisibleWhenField(trimToNull(element.getVisibleWhenField()));
+        copy.setVisibleWhenOperator(normalizeVisibleWhenOperator(element.getVisibleWhenOperator()));
+        copy.setVisibleWhenValue(trimToNull(element.getVisibleWhenValue()));
         return copy;
     }
 
@@ -334,6 +339,34 @@ public class BoxLabelTemplateService {
 
     private String trimToDefault(String value, String defaultValue) {
         return value == null || value.trim().isEmpty() ? defaultValue : value.trim();
+    }
+
+    private String normalizeTextAlign(String value) {
+        String normalized = trimToDefault(value, "left").toLowerCase();
+        if (!"left".equals(normalized) && !"center".equals(normalized) && !"right".equals(normalized)) {
+            return "left";
+        }
+        return normalized;
+    }
+
+    private String normalizeVisibleWhenOperator(String value) {
+        String normalized = trimToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+        normalized = normalized.toLowerCase();
+        if ("empty".equals(normalized)) return "empty";
+        if ("notempty".equals(normalized) || "not_empty".equals(normalized)) return "notEmpty";
+        if ("equals".equals(normalized)) return "equals";
+        if ("notequals".equals(normalized) || "not_equals".equals(normalized)) return "notEquals";
+        if ("contains".equals(normalized)) return "contains";
+        if ("startswith".equals(normalized) || "starts_with".equals(normalized)) return "startsWith";
+        if ("endswith".equals(normalized) || "ends_with".equals(normalized)) return "endsWith";
+        return null;
+    }
+
+    private String trimToNull(String value) {
+        return value == null || value.trim().isEmpty() ? null : value.trim();
     }
 
     private int parseVersion(String value) {

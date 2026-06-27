@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>模板维护中心</title>
+    <link rel="stylesheet" type="text/css" media="print" href="/vendor/hiprint/print-lock.css">
     <script src="/vendor/vue.global.prod.js"></script>
+    <script src="/vendor/hiprint/jquery.min.js"></script>
+    <script src="/vendor/hiprint/JsBarcode.all.min.js"></script>
+    <script src="/vendor/hiprint/socket.io.min.js"></script>
+    <script src="/vendor/hiprint/jspdf.umd.min.js"></script>
+    <script src="/vendor/hiprint/html2canvas.min.js"></script>
+    <script src="/vendor/hiprint/canvg.umd.js"></script>
+    <script src="/vendor/hiprint/vue-plugin-hiprint.js"></script>
     <style>
         :root {
             --bg: #f4f6f8;
@@ -387,6 +395,61 @@
             padding: 22px;
         }
 
+        .hiprint-stage {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 180px minmax(0, 1fr);
+            gap: 14px;
+            overflow: auto;
+            padding: 18px;
+            background: #eef2f6;
+        }
+
+        .hiprint-field-panel {
+            align-self: start;
+            display: grid;
+            gap: 8px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: #fff;
+            padding: 10px;
+        }
+
+        .hiprint-field-panel .ep-draggable-item {
+            min-height: 32px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: var(--panel-soft);
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        .hiprint-design-shell {
+            min-width: 720px;
+            min-height: 560px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            box-shadow: var(--shadow);
+            padding: 16px;
+            overflow: auto;
+        }
+
+        .hiprint-printTemplate {
+            min-height: 520px;
+        }
+
+        .hiprint-setting-panel {
+            min-height: 120px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--panel-soft);
+            padding: 8px;
+            overflow: auto;
+        }
+
         .canvas-wrap {
             width: max-content;
             min-width: 100%;
@@ -687,7 +750,7 @@
 
     <main class="workspace">
         <aside class="side-panel">
-            <section class="panel-section">
+            <section class="panel-section" v-if="editorMode === 'native'">
                 <div class="section-title">
                     <span>模板</span>
                     <small>{{ editableTemplates.length }} 个</small>
@@ -772,6 +835,9 @@
         <section class="editor-main">
             <div class="editor-toolbar">
                 <div class="toolbar-group">
+                    <button type="button" :class="{primary: editorMode === 'native'}" @click="setEditorMode('native')">内置编辑</button>
+                    <button type="button" :class="{primary: hiprintDesignerMode}" @click="setEditorMode('hiprint')">hiprint</button>
+                    <span class="divider"></span>
                     <button type="button" @click="duplicateSelected" :disabled="!selectedElement">复制</button>
                     <button type="button" class="danger" @click="deleteSelected" :disabled="!selectedElement">删除</button>
                     <span class="divider"></span>
@@ -789,7 +855,7 @@
                 </div>
             </div>
 
-            <div class="canvas-stage">
+            <div v-if="editorMode === 'native'" class="canvas-stage">
                 <div class="canvas-wrap">
                     <div v-if="activeTemplate"
                          class="template-canvas"
@@ -827,10 +893,46 @@
                     </div>
                 </div>
             </div>
+
+            <div v-else class="hiprint-stage">
+                <aside id="hiprint-field-panel" class="hiprint-field-panel">
+                    <div class="section-title" style="margin-bottom:2px;">
+                        <span>hiprint组件</span>
+                        <small>{{ hiprintStatusText }}</small>
+                    </div>
+                    <div v-for="item in hiprintPaletteItems"
+                         :key="item.tid"
+                         class="ep-draggable-item"
+                         :tid="item.tid">
+                        {{ item.label }}
+                    </div>
+                </aside>
+                <div class="hiprint-design-shell">
+                    <div id="hiprint-printTemplate" class="hiprint-printTemplate"></div>
+                    <div class="hiprint-printPagination"></div>
+                </div>
+            </div>
         </section>
 
         <aside class="inspector-panel">
-            <section class="panel-section">
+            <section class="panel-section" v-if="editorMode === 'hiprint'">
+                <div class="section-title">
+                    <span>hiprint属性</span>
+                    <small>{{ hiprintStatusText }}</small>
+                </div>
+                <div id="PrintElementOptionSetting" class="hiprint-setting-panel"></div>
+                <div class="inline-row" style="margin-top:10px;">
+                    <button type="button" @click="exportHiprintTemplateJson">导出JSON</button>
+                    <button type="button" @click="loadHiprintTemplateJson">载入JSON</button>
+                    <button type="button" class="primary" @click="applyHiprintTemplateToNative">应用到当前模板</button>
+                </div>
+                <div class="form-row" style="margin-top:10px;">
+                    <label>hiprint template JSON</label>
+                    <textarea v-model="hiprintJsonText" style="min-height:160px;"></textarea>
+                </div>
+            </section>
+
+            <section class="panel-section" v-if="editorMode === 'native'">
                 <div class="section-title">
                     <span>图层</span>
                     <small>{{ selectedElement ? selectedElement.type : '未选中' }}</small>
@@ -855,7 +957,7 @@
                 </div>
             </section>
 
-            <section class="panel-section" v-if="selectedElement">
+            <section class="panel-section" v-if="editorMode === 'native' && selectedElement">
                 <div class="section-title">
                     <span>属性</span>
                     <small>{{ selectedElement.id }}</small>
@@ -964,7 +1066,7 @@
                 </div>
             </section>
 
-            <section class="panel-section" v-if="selectedElement">
+            <section class="panel-section" v-if="editorMode === 'native' && selectedElement">
                 <div class="section-title">
                     <span>条件显示</span>
                     <small>{{ conditionPreview(selectedElement) }}</small>
@@ -1001,7 +1103,7 @@
                 </div>
             </section>
 
-            <section class="panel-section" v-if="!selectedElement">
+            <section class="panel-section" v-if="editorMode === 'native' && !selectedElement">
                 <div class="inspector-empty">选择一个画布组件后编辑属性。</div>
             </section>
 
@@ -1084,10 +1186,27 @@
                 statusText: '就绪',
                 statusType: '',
                 dirty: false,
-                dragPaletteType: ''
+                dragPaletteType: '',
+                editorMode: 'native',
+                hiprintTemplate: null,
+                hiprintJsonText: '',
+                hiprintStatusText: '未初始化',
+                hiprintPaletteItems: [
+                    {label: '文本', tid: 'defaultModule.text'},
+                    {label: '长文本', tid: 'defaultModule.longText'},
+                    {label: '条码', tid: 'defaultModule.barcode'},
+                    {label: '二维码', tid: 'defaultModule.qrcode'},
+                    {label: '图片', tid: 'defaultModule.image'},
+                    {label: '横线', tid: 'defaultModule.hline'},
+                    {label: '竖线', tid: 'defaultModule.vline'},
+                    {label: '矩形', tid: 'defaultModule.rect'}
+                ]
             };
         },
         computed: {
+            hiprintDesignerMode() {
+                return this.editorMode === 'hiprint';
+            },
             editableTemplates() {
                 return this.templates.filter((item) => item.engine === 'CONFIG_LAYOUT');
             },
@@ -1216,6 +1335,260 @@
                 if (!keepSelection) this.selectedElementId = '';
                 this.previewUrl = '';
                 this.dirty = false;
+                if (this.hiprintDesignerMode) {
+                    this.$nextTick(() => this.initHiprintDesigner());
+                }
+            },
+            setEditorMode(mode) {
+                this.editorMode = mode === 'hiprint' ? 'hiprint' : 'native';
+                if (this.hiprintDesignerMode) {
+                    this.$nextTick(() => this.initHiprintDesigner());
+                }
+            },
+            hiprintApi() {
+                const plugin = window['vue-plugin-hiprint'] || {};
+                return {
+                    plugin: plugin,
+                    hiprint: plugin.hiprint || window.hiprint,
+                    defaultElementTypeProvider: plugin.defaultElementTypeProvider || window.defaultElementTypeProvider,
+                    $: window.jQuery || window.$
+                };
+            },
+            clearHiprintContainers() {
+                const api = this.hiprintApi();
+                if (!api.$) return;
+                api.$('#hiprint-printTemplate').empty();
+                api.$('.hiprint-printPagination').empty();
+                api.$('#PrintElementOptionSetting').empty();
+            },
+            initHiprintDesigner() {
+                this.resetHiprintDesigner(this.buildHiprintTemplateJson());
+            },
+            resetHiprintDesigner(templateJson) {
+                const api = this.hiprintApi();
+                if (!api.hiprint || !api.$) {
+                    this.hiprintStatusText = 'hiprint 未加载';
+                    return;
+                }
+                try {
+                    if (api.plugin && typeof api.plugin.disAutoConnect === 'function') {
+                        api.plugin.disAutoConnect();
+                    }
+                    window.autoConnect = false;
+                    this.clearHiprintContainers();
+                    const providers = [];
+                    if (typeof api.defaultElementTypeProvider === 'function') {
+                        providers.push(new api.defaultElementTypeProvider());
+                    }
+                    if (typeof api.hiprint.init === 'function') {
+                        api.hiprint.init({providers: providers});
+                    }
+                    if (api.hiprint.PrintElementTypeManager && api.hiprint.PrintElementTypeManager.buildByHtml) {
+                        api.hiprint.PrintElementTypeManager.buildByHtml(api.$('#hiprint-field-panel .ep-draggable-item'));
+                    }
+                    this.hiprintTemplate = new api.hiprint.PrintTemplate({
+                        template: templateJson || this.buildHiprintTemplateJson(),
+                        settingContainer: '#PrintElementOptionSetting',
+                        paginationContainer: '.hiprint-printPagination'
+                    });
+                    if (this.hiprintTemplate.setFields) {
+                        this.hiprintTemplate.setFields(this.fieldSources.map((field) => ({
+                            field: field.fieldName,
+                            text: field.displayName || field.fieldName
+                        })));
+                    }
+                    this.hiprintTemplate.design('#hiprint-printTemplate');
+                    this.exportHiprintTemplateJson();
+                    this.hiprintStatusText = '已加载';
+                } catch (error) {
+                    this.hiprintStatusText = '初始化失败';
+                    this.setStatus(error.message || 'hiprint 初始化失败', 'error');
+                }
+            },
+            buildHiprintTemplateJson() {
+                const pageWidth = this.pageWidth();
+                const pageHeight = this.pageHeight();
+                return {
+                    panels: [{
+                        index: 0,
+                        name: (this.activeTemplate && (this.activeTemplate.name || this.activeTemplate.code)) || 'label',
+                        width: pageWidth,
+                        height: pageHeight,
+                        paperHeader: 0,
+                        paperFooter: this.mmToPt(pageHeight),
+                        printElements: this.elementList.map((element, index) => this.hiprintElementFromNative(element, index))
+                    }]
+                };
+            },
+            hiprintElementFromNative(element, index) {
+                const type = String(element.type || 'STATIC_TEXT').toUpperCase();
+                const textType = type === 'BARCODE' ? 'barcode' : (type === 'QRCODE' ? 'qrcode' : 'text');
+                const options = {
+                    left: this.mmToPt(element.leftMm),
+                    top: this.mmToPt(element.topMm),
+                    width: this.mmToPt(element.widthMm),
+                    height: this.mmToPt(element.heightMm),
+                    title: this.hiprintElementTitle(element),
+                    fontSize: Number(element.fontSize || 10),
+                    fontWeight: element.bold ? 'bold' : '',
+                    textAlign: this.normalizeTextAlign(element.textAlign),
+                    hideTitle: false
+                };
+                if (type === 'FIELD_TEXT') {
+                    options.field = element.fieldName || '';
+                    options.testData = element.fieldName ? this.fieldValue(element.fieldName) : (element.text || '');
+                }
+                if (type === 'BARCODE' || type === 'QRCODE') {
+                    const customCode = String(element.text || '').trim();
+                    const codeField = element.fieldName || (customCode ? '' : this.defaultCodeField(type));
+                    options.field = codeField;
+                    options.testData = codeField ? this.fieldValue(codeField) : customCode;
+                }
+                if (textType !== 'text') {
+                    options.textType = textType;
+                    options.barcodeMode = type === 'BARCODE' ? 'CODE128' : undefined;
+                    options.qrCodeLevel = type === 'QRCODE' ? 0 : undefined;
+                }
+                if (type === 'LOGO') {
+                    return {
+                        tid: 'defaultModule.image',
+                        options: Object.assign(options, {src: this.fieldValue('logoPath') || ''}),
+                        printElementType: {title: 'Logo', type: 'image'}
+                    };
+                }
+                if (type === 'LINE') {
+                    return {
+                        tid: 'defaultModule.hline',
+                        options: Object.assign(options, {borderWidth: 0.75}),
+                        printElementType: {title: this.typeLabel(type), type: 'hline'}
+                    };
+                }
+                if (type === 'RECTANGLE') {
+                    return {
+                        tid: 'defaultModule.rect',
+                        options: Object.assign(options, {borderWidth: 0.75}),
+                        printElementType: {title: this.typeLabel(type), type: 'rect'}
+                    };
+                }
+                return {
+                    tid: textType === 'qrcode' ? 'defaultModule.qrcode' : (textType === 'barcode' ? 'defaultModule.barcode' : 'defaultModule.text'),
+                    options: options,
+                    printElementType: {title: this.typeLabel(type), type: 'text'}
+                };
+            },
+            hiprintElementTitle(element) {
+                if (element.type === 'STATIC_TEXT') return element.text || this.typeLabel(element.type);
+                if (element.fieldName) return this.fieldLabel(element.fieldName);
+                if (this.codeElementSelected(element)) return element.text || this.defaultCodeContent(element) || this.typeLabel(element.type);
+                return element.text || this.typeLabel(element.type);
+            },
+            currentHiprintTemplateJson() {
+                if (this.hiprintTemplate) {
+                    try {
+                        const json = this.hiprintTemplate.getJson ? this.hiprintTemplate.getJson() : this.hiprintTemplate.getJsonTid();
+                        return JSON.parse(JSON.stringify(json));
+                    } catch (error) {
+                        this.setStatus(error.message || '读取 hiprint JSON 失败', 'error');
+                    }
+                }
+                if (this.hiprintJsonText && this.hiprintJsonText.trim()) {
+                    return JSON.parse(this.hiprintJsonText);
+                }
+                return this.buildHiprintTemplateJson();
+            },
+            exportHiprintTemplateJson() {
+                const json = this.currentHiprintTemplateJson();
+                this.hiprintJsonText = JSON.stringify(json, null, 2);
+                return json;
+            },
+            loadHiprintTemplateJson() {
+                try {
+                    const json = this.hiprintJsonText && this.hiprintJsonText.trim()
+                        ? JSON.parse(this.hiprintJsonText)
+                        : this.buildHiprintTemplateJson();
+                    this.resetHiprintDesigner(json);
+                    this.hiprintStatusText = 'JSON 已载入';
+                } catch (error) {
+                    this.hiprintStatusText = 'JSON 无效';
+                    this.setStatus(error.message || 'hiprint JSON 无效', 'error');
+                }
+            },
+            async applyHiprintTemplateToNative() {
+                if (!this.activeTemplate) return;
+                const json = this.exportHiprintTemplateJson();
+                const printElements = this.hiprintPrintElements(json);
+                const elements = printElements
+                    .map((item, index) => this.nativeElementFromHiprint(item, index))
+                    .filter(Boolean);
+                if (!elements.length && printElements.length) {
+                    this.setStatus('hiprint 元素暂不能转换到当前模板', 'error');
+                    return;
+                }
+                this.activeTemplate.elements = elements;
+                this.renumberElements();
+                this.selectedElementId = '';
+                this.markDirty();
+                await this.saveElements();
+                this.setStatus('hiprint 设计已应用并保存', 'ok');
+                this.$nextTick(() => this.initHiprintDesigner());
+            },
+            hiprintPrintElements(json) {
+                const panels = json && Array.isArray(json.panels) ? json.panels : [];
+                const panel = panels[0] || {};
+                return Array.isArray(panel.printElements) ? panel.printElements : [];
+            },
+            nativeElementFromHiprint(printElement, index) {
+                const options = Object.assign({}, printElement.options || {});
+                const printType = (printElement.printElementType && printElement.printElementType.type) || printElement.type || '';
+                const textType = String(options.textType || '').toLowerCase();
+                let type = 'STATIC_TEXT';
+                if (printType === 'image') type = 'LOGO';
+                else if (printType === 'hline' || printType === 'vline') type = 'LINE';
+                else if (printType === 'rect') type = 'RECTANGLE';
+                else if (textType === 'barcode') type = 'BARCODE';
+                else if (textType === 'qrcode') type = 'QRCODE';
+                else if (options.field) type = 'FIELD_TEXT';
+                if (['table', 'html'].indexOf(printType) >= 0) return null;
+                const widthMm = this.snap(this.ptToMm(options.width || 28));
+                const heightMm = this.snap(this.ptToMm(options.height || 12));
+                const codeField = (type === 'BARCODE' || type === 'QRCODE') ? this.hiprintCodeField(options) : '';
+                const codePayload = (type === 'BARCODE' || type === 'QRCODE') ? this.hiprintCodePayload(options) : '';
+                const element = this.normalizeElement({
+                    id: this.newId(),
+                    sortOrder: index + 1,
+                    type: type,
+                    text: type === 'FIELD_TEXT' || codeField ? '' : (type === 'BARCODE' || type === 'QRCODE' ? codePayload : (options.title || options.testData || '')),
+                    fieldName: type === 'BARCODE' || type === 'QRCODE' ? codeField : (options.field || ''),
+                    leftMm: this.snap(this.ptToMm(options.left || 0)),
+                    topMm: this.snap(this.ptToMm(options.top || 0)),
+                    widthMm: widthMm > 0 ? widthMm : this.defaultElementSize(type).widthMm,
+                    heightMm: heightMm > 0 ? heightMm : this.defaultElementSize(type).heightMm,
+                    fontSize: Number(options.fontSize || 10),
+                    bold: options.fontWeight === 'bold' || Number(options.fontWeight || 0) >= 600,
+                    textAlign: this.normalizeTextAlign(options.textAlign)
+                }, index);
+                element.widthMm = this.snap(this.clamp(element.widthMm, 0.5, this.pageWidth()));
+                element.heightMm = this.snap(this.clamp(element.heightMm, 0.5, this.pageHeight()));
+                element.leftMm = this.snap(this.clamp(element.leftMm, 0, this.pageWidth() - element.widthMm));
+                element.topMm = this.snap(this.clamp(element.topMm, 0, this.pageHeight() - element.heightMm));
+                return element;
+            },
+            hiprintCodeField(options) {
+                return String((options && options.field) || '').trim();
+            },
+            hiprintCodePayload(options) {
+                if (this.hiprintCodeField(options)) return '';
+                const candidates = [
+                    options && options.testData,
+                    options && options.text,
+                    options && options.value,
+                    options && options.content
+                ];
+                for (let i = 0; i < candidates.length; i++) {
+                    const value = String(candidates[i] || '').trim();
+                    if (value) return value;
+                }
+                return '';
             },
             setStatus(text, type) {
                 this.statusText = text;
@@ -1658,6 +2031,12 @@
             },
             snap(value) {
                 return Math.round(Number(value || 0) * 2) / 2;
+            },
+            mmToPt(value) {
+                return Math.round(Number(value || 0) * 72 / 25.4 * 100) / 100;
+            },
+            ptToMm(value) {
+                return Math.round(Number(value || 0) * 25.4 / 72 * 100) / 100;
             },
             clamp(value, min, max) {
                 return Math.max(min, Math.min(max, value));
